@@ -3,11 +3,13 @@
 
 extern volatile long ticksOmbroEsq;
 extern volatile long ticksOmbroDir;
+extern volatile float anguloSpikeGraus;
 
 class BracosSetup {
 public:
-    /**
-     * @brief Inicializa Serial2 (16/17), pontes H dos ombros e encoders de quadratura.
-     */
+    /** @brief Configura ponte H, Serial2 e interrupções dos encoders dos ombros. */
     void inicializarHardware();
+
+    /** @brief Inicia scanner BLE passivo para ler telemetria do giroscópio SPIKE Prime. */
+    void inicializarBleSpike();
 };

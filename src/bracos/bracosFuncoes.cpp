@@ -3,13 +3,51 @@
 #include "bracosCenas.h"
 #include "config.h"
 
+namespace {
+// Canais LEDC altos (8 a 11) isolados dos timers 0-3 usados pela biblioteca ESP32Servo.
+constexpr uint8_t kChOmbroEsqR = 8;
+constexpr uint8_t kChOmbroEsqL = 9;
+constexpr uint8_t kChOmbroDirR = 10;
+constexpr uint8_t kChOmbroDirL = 11;
+constexpr uint32_t kFreqPwmOmbroHz = 1000;
+constexpr uint8_t kResPwmOmbroBits = 8;
+bool pwmOmbrosConfigurado = false;
+
+void garantirPwmOmbrosIsolado() {
+    if (pwmOmbrosConfigurado) return;
+    if (kPinOmbroEsqRpwm == 255 || kPinOmbroEsqLpwm == 255 ||
+        kPinOmbroDirRpwm == 255 || kPinOmbroDirLpwm == 255) return;
+
+    ledcSetup(kChOmbroEsqR, kFreqPwmOmbroHz, kResPwmOmbroBits);
+    ledcSetup(kChOmbroEsqL, kFreqPwmOmbroHz, kResPwmOmbroBits);
+    ledcSetup(kChOmbroDirR, kFreqPwmOmbroHz, kResPwmOmbroBits);
+    ledcSetup(kChOmbroDirL, kFreqPwmOmbroHz, kResPwmOmbroBits);
+
+    ledcAttachPin(kPinOmbroEsqRpwm, kChOmbroEsqR);
+    ledcAttachPin(kPinOmbroEsqLpwm, kChOmbroEsqL);
+    ledcAttachPin(kPinOmbroDirRpwm, kChOmbroDirR);
+    ledcAttachPin(kPinOmbroDirLpwm, kChOmbroDirL);
+
+    ledcWrite(kChOmbroEsqR, 0);
+    ledcWrite(kChOmbroEsqL, 0);
+    ledcWrite(kChOmbroDirR, 0);
+    ledcWrite(kChOmbroDirL, 0);
+    pwmOmbrosConfigurado = true;
+}
+}  // namespace
+
 void BracosFuncoes::inicializarServos() {
+    garantirPwmOmbrosIsolado();
     if (kPinServoCotoveloEsq == 255 || kPinServoCotoveloDir == 255) return;
 
-    servoCotoveloEsq_.write(static_cast<int>(kCotoveloEsqMinGraus));
-    servoCotoveloDir_.write(static_cast<int>(kCotoveloDirMinGraus));
-    servoCotoveloEsq_.attach(kPinServoCotoveloEsq);
-    servoCotoveloDir_.attach(kPinServoCotoveloDir);
+    // Reserva timers específicos para os servos não colidirem com o PWM das pontes H BTS7960.
+    ESP32PWM::allocateTimer(0);
+    ESP32PWM::allocateTimer(1);
+
+    servoCotoveloEsq_.writeMicroseconds(1500);
+    servoCotoveloDir_.writeMicroseconds(1500);
+    servoCotoveloEsq_.attach(kPinServoCotoveloEsq, 500, 2500);
+    servoCotoveloDir_.attach(kPinServoCotoveloDir, 500, 2500);
 }
 
 float BracosFuncoes::limitarAngulo_(float valor, float minimo, float maximo, const char* nomeJunta) {
@@ -26,18 +64,27 @@ float BracosFuncoes::limitarAngulo_(float valor, float minimo, float maximo, con
 
 void BracosFuncoes::aplicarPwmOmbro_(uint8_t pinR, uint8_t pinL, int pwm) {
     if (pinR == 255 || pinL == 255) return;
+    garantirPwmOmbrosIsolado();
+
+    uint8_t chR = (pinR == kPinOmbroEsqRpwm) ? kChOmbroEsqR : kChOmbroDirR;
+    uint8_t chL = (pinL == kPinOmbroEsqLpwm) ? kChOmbroEsqL : kChOmbroDirL;
+
     if (pwm > 0) {
-        analogWrite(pinR, pwm); analogWrite(pinL, 0);
+        ledcWrite(chR, pwm);
+        ledcWrite(chL, 0);
     } else if (pwm < 0) {
-        analogWrite(pinR, 0); analogWrite(pinL, abs(pwm));
+        ledcWrite(chR, 0);
+        ledcWrite(chL, abs(pwm));
     } else {
-        analogWrite(pinR, 0); analogWrite(pinL, 0);
+        ledcWrite(chR, 0);
+        ledcWrite(chL, 0);
     }
 }
 
 void BracosFuncoes::pararOmbros() {
     isOmbroEsqAtivo_ = false;
     isOmbroDirAtivo_ = false;
+    isManualOmbroAtivo_ = false;
     aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, 0);
     aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, 0);
 }
@@ -46,6 +93,7 @@ void BracosFuncoes::moverOmbroEsq(float graus, int velocidade) {
     float seguro = limitarAngulo_(graus, kOmbroMinGraus, kOmbroMaxGraus, "OmbroEsq");
     alvoTicksEsq_ = static_cast<long>(seguro * kTicksPorGrauOmbro);
     velOmbroEsq_ = constrain(velocidade, kPwmMinOmbro, kPwmMax);
+    isManualOmbroAtivo_ = false;
     isOmbroEsqAtivo_ = true;
 }
 
@@ -53,68 +101,86 @@ void BracosFuncoes::moverOmbroDir(float graus, int velocidade) {
     float seguro = limitarAngulo_(graus, kOmbroMinGraus, kOmbroMaxGraus, "OmbroDir");
     alvoTicksDir_ = static_cast<long>(seguro * kTicksPorGrauOmbro);
     velOmbroDir_ = constrain(velocidade, kPwmMinOmbro, kPwmMax);
+    isManualOmbroAtivo_ = false;
     isOmbroDirAtivo_ = true;
 }
 
 void BracosFuncoes::moverCotoveloEsq(float graus) {
-    float seguro = limitarAngulo_(graus, kCotoveloEsqMinGraus, kCotoveloEsqMaxGraus, "CotoveloEsq");
-    if (kPinServoCotoveloEsq != 255) servoCotoveloEsq_.write(static_cast<int>(seguro));
+    if (kPinServoCotoveloEsq == 255) return;
+    int posIntuitiva = constrain(static_cast<int>(graus), 0, 120);
+    int anguloReal = map(posIntuitiva, 0, 120, static_cast<int>(kCotoveloEsqMinGraus), static_cast<int>(kCotoveloEsqMaxGraus));
+    servoCotoveloEsq_.writeMicroseconds(map(anguloReal, 0, 120, 500, 2500));
 }
 
 void BracosFuncoes::moverCotoveloDir(float graus) {
-    float seguro = limitarAngulo_(graus, kCotoveloDirMinGraus, kCotoveloDirMaxGraus, "CotoveloDir");
-    if (kPinServoCotoveloDir != 255) servoCotoveloDir_.write(static_cast<int>(seguro));
+    if (kPinServoCotoveloDir == 255) return;
+    int posIntuitiva = constrain(static_cast<int>(graus), 0, 120);
+    int anguloReal = map(posIntuitiva, 0, 120, static_cast<int>(kCotoveloDirMaxGraus), static_cast<int>(kCotoveloDirMinGraus));
+    servoCotoveloDir_.writeMicroseconds(map(anguloReal, 0, 120, 500, 2500));
 }
 
 void BracosFuncoes::processarSerial2(BracosCenas& cenas) {
-    if (!Serial2.available()) return;
-    String cmd = Serial2.readStringUntil('\n');
-    cmd.trim();
+    // Drena todos os comandos pendentes na UART para evitar atraso ou disparo tardio.
+    while (Serial2.available()) {
+        String cmd = Serial2.readStringUntil('\n');
+        cmd.trim();
+        if (cmd.length() == 0) continue;
 
-    if (cmd.startsWith("CENA:")) {
-        cenas.iniciarCena(cmd.substring(5).toInt());
-    } else if (cmd.startsWith("vel_braco:")) {
-        velManualOmbro_ = constrain(cmd.substring(10).toInt(), kPwmMinOmbro, kPwmMax);
-    } else if (cmd.startsWith("SRV_POS_E:") || cmd.startsWith("srv_pos_e:")) {
-        moverCotoveloEsq(cmd.substring(10).toFloat());
-    } else if (cmd.startsWith("SRV_POS_D:") || cmd.startsWith("srv_pos_d:")) {
-        moverCotoveloDir(cmd.substring(10).toFloat());
-    } else if (cmd.startsWith("OMB_POS_E:")) {
-        int virgula = cmd.indexOf(',');
-        moverOmbroEsq(cmd.substring(10, virgula).toFloat(), cmd.substring(virgula + 1).toInt());
-    } else if (cmd.startsWith("OMB_POS_D:")) {
-        int virgula = cmd.indexOf(',');
-        moverOmbroDir(cmd.substring(10, virgula).toFloat(), cmd.substring(virgula + 1).toInt());
-    } else if (cmd == "be_up") {
-        isOmbroEsqAtivo_ = false;
-        aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, velManualOmbro_);
-    } else if (cmd == "be_dwn") {
-        isOmbroEsqAtivo_ = false;
-        aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, -velManualOmbro_);
-    } else if (cmd == "bd_up") {
-        isOmbroDirAtivo_ = false;
-        aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, velManualOmbro_);
-    } else if (cmd == "bd_dwn") {
-        isOmbroDirAtivo_ = false;
-        aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, -velManualOmbro_);
-    } else if (cmd == "BE_STP" || cmd == "BD_STP") {
-        pararOmbros();
+        if (cmd.startsWith("CENA:")) {
+            cenas.iniciarCena(cmd.substring(5).toInt());
+        } else if (cmd.startsWith("vel_braco:")) {
+            velManualOmbro_ = constrain(cmd.substring(10).toInt(), kPwmMinOmbro, kPwmMax);
+        } else if (cmd.startsWith("SRV_POS_E:") || cmd.startsWith("srv_pos_e:")) {
+            moverCotoveloEsq(cmd.substring(10).toFloat());
+        } else if (cmd.startsWith("SRV_POS_D:") || cmd.startsWith("srv_pos_d:")) {
+            moverCotoveloDir(cmd.substring(10).toFloat());
+        } else if (cmd.startsWith("OMB_POS_E:")) {
+            int virgula = cmd.indexOf(',');
+            moverOmbroEsq(cmd.substring(10, virgula).toFloat(), cmd.substring(virgula + 1).toInt());
+        } else if (cmd.startsWith("OMB_POS_D:")) {
+            int virgula = cmd.indexOf(',');
+            moverOmbroDir(cmd.substring(10, virgula).toFloat(), cmd.substring(virgula + 1).toInt());
+        } else if (cmd == "be_up" || cmd == "BE_UP") {
+            isOmbroEsqAtivo_ = false;
+            isManualOmbroAtivo_ = true;
+            ultimoCmdManualBracoMs_ = millis();
+            aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, velManualOmbro_);
+        } else if (cmd == "be_dwn" || cmd == "BE_DWN") {
+            isOmbroEsqAtivo_ = false;
+            isManualOmbroAtivo_ = true;
+            ultimoCmdManualBracoMs_ = millis();
+            aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, -velManualOmbro_);
+        } else if (cmd == "bd_up" || cmd == "BD_UP") {
+            isOmbroDirAtivo_ = false;
+            isManualOmbroAtivo_ = true;
+            ultimoCmdManualBracoMs_ = millis();
+            aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, velManualOmbro_);
+        } else if (cmd == "bd_dwn" || cmd == "BD_DWN") {
+            isOmbroDirAtivo_ = false;
+            isManualOmbroAtivo_ = true;
+            ultimoCmdManualBracoMs_ = millis();
+            aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, -velManualOmbro_);
+        } else if (cmd == "BE_STP" || cmd == "BD_STP" || cmd == "be_stp" || cmd == "bd_stp") {
+            pararOmbros();
+        }
     }
 }
 
 void BracosFuncoes::atualizarCinematica() {
+    if (isManualOmbroAtivo_ && (millis() - ultimoCmdManualBracoMs_ > 300)) {
+        pararOmbros();
+    }
+
     noInterrupts();
     long atualEsq = ticksOmbroEsq;
     long atualDir = ticksOmbroDir;
     interrupts();
 
     long maxTicks = static_cast<long>(kOmbroMaxGraus * kTicksPorGrauOmbro);
-    if (atualEsq >= maxTicks || atualEsq < 0) aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, 0);
-    if (atualDir >= maxTicks || atualDir < 0) aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, 0);
 
     if (isOmbroEsqAtivo_) {
         long erro = alvoTicksEsq_ - atualEsq;
-        if (abs(erro) <= 10) {
+        if (abs(erro) <= 10 || atualEsq >= maxTicks) {
             isOmbroEsqAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, 0);
         } else {
@@ -125,7 +191,7 @@ void BracosFuncoes::atualizarCinematica() {
 
     if (isOmbroDirAtivo_) {
         long erro = alvoTicksDir_ - atualDir;
-        if (abs(erro) <= 10) {
+        if (abs(erro) <= 10 || atualDir >= maxTicks) {
             isOmbroDirAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, 0);
         } else {
@@ -136,12 +202,14 @@ void BracosFuncoes::atualizarCinematica() {
 }
 
 void BracosFuncoes::enviarTelemetriaSerial2() {
-    if (millis() - ultimoEnvioTelemetriaMs_ < 100) return;
+    // 50 Hz mantém o giroscópio atualizado sem atraso na Base para o controle de rotação.
+    if (millis() - ultimoEnvioTelemetriaMs_ < 20) return;
     ultimoEnvioTelemetriaMs_ = millis();
 
     noInterrupts();
     long e = ticksOmbroEsq, d = ticksOmbroDir;
     interrupts();
+    float gyro = anguloSpikeGraus;
 
-    Serial2.printf("ENC:%ld,%ld\n", e, d);
+    Serial2.printf("ENC:%ld,%ld,%.1f\n", e, d, gyro);
 }

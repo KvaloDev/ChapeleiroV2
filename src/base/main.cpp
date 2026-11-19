@@ -17,14 +17,12 @@ void setup() {
     } else {
         cenas.iniciarCena(1);
     }
-
-    setupBase.inicializarBleSpike();
 }
 
 void loop() {
-    funcoes.atualizarCinematica();
     funcoes.processarSerial2();
     cenas.atualizarCenas();
+    funcoes.atualizarCinematica();
 
     if (kModoDesenvolvimento) {
         setupBase.atualizarRede(funcoes);

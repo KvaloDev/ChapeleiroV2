@@ -12,24 +12,13 @@ extern volatile float anguloSpikeGraus;
 
 class BaseSetup {
 public:
-    /**
-     * @brief Configura pinos dos motores, interrupções de quadratura e Serial2 (16/17).
-     */
+    /** @brief Configura pinos da ponte H, Serial2 e interrupções dos encoders. */
     void inicializarHardware();
 
-    /**
-     * @brief Inicia varredura BLE passiva para receber o ângulo IMU do SPIKE Prime.
-     */
-    void inicializarBleSpike();
-
-    /**
-     * @brief Inicia Access Point Wi-Fi e servidor WebSocket para calibração.
-     */
+    /** @brief Sobe o SoftAP Wi-Fi e registra as rotas HTTP e WebSocket do painel. */
     void inicializarRedeEInterface(BaseFuncoes& funcoes, BaseCenas& cenas);
 
-    /**
-     * @brief Mantém clientes WebSocket limpos e envia telemetria a 10 Hz.
-     */
+    /** @brief Transmite telemetria de encoders e giroscópio ao painel conectado. */
     void atualizarRede(const BaseFuncoes& funcoes);
 
 private:

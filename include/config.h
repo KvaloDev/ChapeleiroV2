@@ -1,23 +1,22 @@
 #pragma once
 #include <Arduino.h>
 
-// Em competicao, desativa o Wi-Fi para evitar interferencia RF e executa a cena autonomamente.
+ // Boleana pra ativar/desatir o painel wi-fi (true=ligado, false=desligado)
 constexpr bool kModoDesenvolvimento = true;
 
 constexpr uint8_t kPinRxSerial2 = 16;
 constexpr uint8_t kPinTxSerial2 = 17;
 constexpr uint32_t kBaudSerial2 = 115200;
 
-// --- PARAMETROS DA BASE ---
 constexpr float kTicksPorMmBase = 1.65f;
 constexpr int kPwmMax = 255;
 constexpr int kPwmMinBase = 15;
 constexpr uint8_t kCanalSpikeGyro = 8;
 
-// Inverter para -1 caso girar o robo no sentido horario diminua o angulo lido pelo hub.
+// Colocar -1 caso girar o robô no sentido horário diminua o ângulo lido pelo hub.
 constexpr int kDirGyroSpike = 1;
 
-// Rampa trapezoidal aplicada a qualquer velocidade para evitar patinagem e trancos mecanicos.
+// configursção da rampa de aceleração pra evitar arrancadas/paradas bruscas
 constexpr int kPwmInicialRampa = 15;
 constexpr int kPassoRampaPwm = 5;
 constexpr unsigned long kIntervaloRampaMs = 100;
@@ -41,11 +40,10 @@ constexpr uint8_t kPinEncM4A = 23, kPinEncM4B = 4;
 constexpr char kWifiSsid[] = "ChapeleiroV2";
 constexpr char kWifiPass[] = "tucunarobotica";
 
-// --- PARAMETROS DOS BRACOS ---
 constexpr float kTicksPorGrauOmbro = 26.49f;
 constexpr int kPwmMinOmbro = 50;
 
-// Limites fisicos de operacao para evitar colisao estrutural dos membros superiores.
+// Limites físicos de operação para evitar colisão estrutural dos membros superiores.
 constexpr float kOmbroMinGraus = 0.0f;
 constexpr float kOmbroMaxGraus = 90.0f;
 constexpr float kCotoveloEsqMinGraus = 75.0f;
@@ -53,18 +51,20 @@ constexpr float kCotoveloEsqMaxGraus = 120.0f;
 constexpr float kCotoveloDirMinGraus = 0.0f;
 constexpr float kCotoveloDirMaxGraus = 50.0f;
 
-constexpr int kDirEncOmbroEsq = 1;
+// Ombro esquerdo sobe no sentido correto, mas o encoder estava contando invertido.
+constexpr int kDirEncOmbroEsq = -1;
 constexpr int kDirEncOmbroDir = 1;
 
-constexpr uint8_t kPinOmbroEsqRpwm = 255;
-constexpr uint8_t kPinOmbroEsqLpwm = 255;
-constexpr uint8_t kPinOmbroDirRpwm = 255;
-constexpr uint8_t kPinOmbroDirLpwm = 255;
+// Ombro direito voltou para 25/26 para subir ao pressionar SOBE.
+constexpr uint8_t kPinOmbroEsqRpwm = 33;
+constexpr uint8_t kPinOmbroEsqLpwm = 32;
+constexpr uint8_t kPinOmbroDirRpwm = 25;
+constexpr uint8_t kPinOmbroDirLpwm = 26;
 
-constexpr uint8_t kPinEncOmbroEsqA = 255;
-constexpr uint8_t kPinEncOmbroEsqB = 255;
-constexpr uint8_t kPinEncOmbroDirA = 255;
-constexpr uint8_t kPinEncOmbroDirB = 255;
+constexpr uint8_t kPinEncOmbroEsqA = 22;
+constexpr uint8_t kPinEncOmbroEsqB = 21;
+constexpr uint8_t kPinEncOmbroDirA = 19;
+constexpr uint8_t kPinEncOmbroDirB = 18;
 
-constexpr uint8_t kPinServoCotoveloEsq = 255;
-constexpr uint8_t kPinServoCotoveloDir = 255;
+constexpr uint8_t kPinServoCotoveloEsq = 4;
+constexpr uint8_t kPinServoCotoveloDir = 27;

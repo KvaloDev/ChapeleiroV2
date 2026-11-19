@@ -1,6 +1,8 @@
+// Evita inclusão múltipla deste cabeçalho na mesma unidade de compilação para prevenir erros de redefinição.
 #pragma once
 #include <Arduino.h>
 
+// Armazena o HTML (~25 KB) na Flash (PROGMEM) para não consumir a SRAM necessária para a pilha TCP/IP do Wi-Fi.
 const char kIndexHtml[] PROGMEM = R"rawliteral(
 <!DOCTYPE html>
 <html>
@@ -32,47 +34,47 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     .btn-play { background: #1B5E20; border-color: var(--green); color: var(--green); }
     .medida-bar { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; min-height: 28px; }
     .chip-medida { background: var(--bg); border: 1px solid var(--green); color: var(--green); padding: 4px 10px; border-radius: 14px; font-family: monospace; font-size: 13px; cursor: pointer; }
-    .badge-rampa { font-size: 11px; padding: 2px 6px; border-radius: 4px; background: #16265C; color: #AAA; }
-    .badge-rampa.on { background: #E65100; color: #FFF; font-weight: bold; }
+    .badge-rampa { font-size: 11px; padding: 3px 8px; border-radius: 4px; background: #E65100; color: #FFF; font-weight: bold; }
   </style>
 </head>
-<body>
+<body oncontextmenu="return false;">
   <h1>CHAPELEIRO V2 | TUCUNA</h1>
 
-  <!-- TELEMETRIA GYRO E CONTROLE DE FORCA -->
   <div class="grid-2">
     <div class="box" style="margin:0;">
-      <h3>Giroscopio SPIKE (BLE)</h3>
+      <h3>Giroscópio SPIKE (BLE)</h3>
       <span class="telem gyro-big" id="gyroDisp">0.0</span><span class="telem gyro-big">°</span>
       <br><br>
-      <button onclick="sendCmd('zero_gyro')" style="border-color:var(--green); color:var(--green);">ZERAR (0°)</button>
-      <button onclick="sendCmd('cena_1')" style="border-color:var(--yellow);">CENA 1 (C++)</button>
+      <div style="display:flex; gap:5px; justify-content:center; flex-wrap:wrap;">
+        <button onclick="sendCmd('zero_gyro')" style="border-color:var(--green); color:var(--green);">ZERAR (0°)</button>
+        <button id="btnFod" onclick="toggleFod()" style="background:#1B5E20; border-color:var(--green); color:var(--green);">🧭 CAMPO: ON</button>
+        <button onclick="sendCmd('cena_1')" style="border-color:var(--yellow);">CENA 1</button>
+      </div>
     </div>
 
     <div class="box" style="margin:0;">
-      <h3>Forca da Base (PWM)</h3>
+      <h3>Força da Base (PWM)</h3>
       <button onclick="alterarForcaBase(-10)">-10</button>
       <input type="number" id="forcaBase" value="120" min="0" max="255" onchange="aplicarForcaBase(this.value)">
       <button onclick="alterarForcaBase(10)">+10</button>
       <br><br>
-      <span id="badgeRampa" class="badge-rampa">RAMPA ATIVA (>60)</span>
+      <span class="badge-rampa">RAMPA ATIVA (15 → +5 / 100ms)</span>
     </div>
   </div>
 
-  <!-- 4 VELOCIDADES RAPIDAS (TECLAS 1, 2, 3, 4) -->
   <div class="box">
-    <h3>Velocidades Rapidas (Segure ou aperte 1, 2, 3 ou 4)</h3>
+    <h3>Velocidades Rápidas (Segure ou aperte 1, 2, 3 ou 4)</h3>
     <div class="grid-4">
       <div class="preset-card" id="cardVel1" onclick="selecionarPreset(1)">
         <div><b>[1]</b> Lenta</div>
         <input type="number" id="preset1" value="55" min="0" max="255" onchange="atualizarPreset(1)">
       </div>
       <div class="preset-card ativo" id="cardVel2" onclick="selecionarPreset(2)">
-        <div><b>[2]</b> Media</div>
+        <div><b>[2]</b> Média</div>
         <input type="number" id="preset2" value="95" min="0" max="255" onchange="atualizarPreset(2)">
       </div>
       <div class="preset-card" id="cardVel3" onclick="selecionarPreset(3)">
-        <div><b>[3]</b> Rapida</div>
+        <div><b>[3]</b> Rápida</div>
         <input type="number" id="preset3" value="145" min="0" max="255" onchange="atualizarPreset(3)">
       </div>
       <div class="preset-card" id="cardVel4" onclick="selecionarPreset(4)">
@@ -82,18 +84,21 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     </div>
   </div>
 
-  <!-- GIRO PRECISO (SETAS ESQUERDA/DIREITA + ANGULO) E MEDIDOR DE DISTANCIA (M) -->
   <div class="grid-2">
     <div class="box" style="margin:0;">
-      <h3>Giro Preciso (Setas ← / →)</h3>
+      <h3>Giro Preciso (Relativo / Absoluto)</h3>
       <input type="number" id="anguloGiro" value="90" min="1" max="360" step="1"> °
-      <br><br>
       <button class="turn" onclick="executarGiroSeta(-1)">↶ ESQ (←)</button>
       <button class="turn" onclick="executarGiroSeta(1)">DIR (→) ↷</button>
+      <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--btn);">
+        <input type="number" id="anguloAbsoluto" value="0" min="-360" max="360" step="1"> °
+        <button onclick="executarGiroAbsoluto()" style="border-color:var(--green); color:var(--green);">IR PARA X°</button>
+        <button onclick="executarGiroAbsoluto(0)" style="background:#1B5E20; border-color:var(--green); color:var(--green);">VOLTAR 0°</button>
+      </div>
     </div>
 
     <div class="box" style="margin:0;">
-      <h3>Regua Digital (Tecla M)</h3>
+      <h3>Régua Digital (Tecla M)</h3>
       <span class="telem" id="medidaAtualDisp">0.0 mm</span>
       <br><br>
       <button id="btnMedir" onclick="toggleMedirDistancia()">📏 MEDIR (M)</button>
@@ -101,13 +106,11 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     </div>
   </div>
 
-  <!-- BARRA DE MEDIDAS SALVAS -->
   <div class="box" style="padding:6px 10px;">
     <div style="font-size:11px; color:#AAA;">MEDIDAS SALVAS (clique para copiar):</div>
     <div class="medida-bar" id="barraMedidas"></div>
   </div>
 
-  <!-- D-PAD DIRECIONAL + DIAGONAIS -->
   <div class="grid-3">
     <button id="btn_wa" onmousedown="sendCmd('wa')" onmouseup="sendCmd('stop')" ontouchstart="event.preventDefault();sendCmd('wa')" ontouchend="event.preventDefault();sendCmd('stop')">↖ W+A</button>
     <button id="btn_w" onmousedown="sendCmd('w')" onmouseup="sendCmd('stop')" ontouchstart="event.preventDefault();sendCmd('w')" ontouchend="event.preventDefault();sendCmd('stop')">▲ W</button>
@@ -126,9 +129,8 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     <button id="btn_e" class="turn" onmousedown="sendCmd('e')" onmouseup="sendCmd('stop')" ontouchstart="event.preventDefault();sendCmd('e')" ontouchend="event.preventDefault();sendCmd('stop')">↷ GIRAR E</button>
   </div>
 
-  <!-- CONTROLE DOS BRACOS + FORCA DO BRACO -->
   <div class="box">
-    <h3>Forca dos Bracos (Ombros PWM)</h3>
+    <h3>Força dos Braços (Ombros PWM)</h3>
     <input type="number" id="forcaBraco" value="130" min="50" max="255" onchange="aplicarForcaBraco(this.value)">
     <button onclick="aplicarForcaBraco(document.getElementById('forcaBraco').value)">APLICAR</button>
   </div>
@@ -136,36 +138,44 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
   <div class="grid-2">
     <div class="box" style="margin:0;">
       <div>OMBRO ESQ: <span class="telem" id="encBE">0</span></div><br>
-      <button onmousedown="sendCmd('be_up')" onmouseup="sendCmd('stop')" ontouchstart="event.preventDefault();sendCmd('be_up')" ontouchend="event.preventDefault();sendCmd('stop')">▲ SOBE</button>
-      <button onmousedown="sendCmd('be_dwn')" onmouseup="sendCmd('stop')" ontouchstart="event.preventDefault();sendCmd('be_dwn')" ontouchend="event.preventDefault();sendCmd('stop')">▼ DESCE</button>
+      <button onmousedown="iniciarBraco('be_up')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('be_up')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▲ SOBE</button>
+      <button onmousedown="iniciarBraco('be_dwn')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('be_dwn')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▼ DESCE</button>
     </div>
     <div class="box" style="margin:0;">
       <div>OMBRO DIR: <span class="telem" id="encBD">0</span></div><br>
-      <button onmousedown="sendCmd('bd_up')" onmouseup="sendCmd('stop')" ontouchstart="event.preventDefault();sendCmd('bd_up')" ontouchend="event.preventDefault();sendCmd('stop')">▲ SOBE</button>
-      <button onmousedown="sendCmd('bd_dwn')" onmouseup="sendCmd('stop')" ontouchstart="event.preventDefault();sendCmd('bd_dwn')" ontouchend="event.preventDefault();sendCmd('stop')">▼ DESCE</button>
+      <button onmousedown="iniciarBraco('bd_up')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('bd_up')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▲ SOBE</button>
+      <button onmousedown="iniciarBraco('bd_dwn')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('bd_dwn')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▼ DESCE</button>
     </div>
     <div class="box" style="margin:0;">
-      <div>COTOVELO ESQ (75-120°)</div><br>
-      <input type="number" id="srvE" value="90" min="75" max="120">
+      <div>COTOVELO ESQ (0-120)</div><br>
+      <input type="number" id="srvE" value="0" min="0" max="120">
       <button onclick="sendCmd('srv_pos_e:' + document.getElementById('srvE').value)">SET</button>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:6px;">
+        <button onclick="document.getElementById('srvE').value=0; sendCmd('srv_pos_e:0')">0</button>
+        <button onclick="document.getElementById('srvE').value=60; sendCmd('srv_pos_e:60')">60</button>
+        <button onclick="document.getElementById('srvE').value=120; sendCmd('srv_pos_e:120')">120</button>
+      </div>
     </div>
     <div class="box" style="margin:0;">
-      <div>COTOVELO DIR (0-50°)</div><br>
-      <input type="number" id="srvD" value="25" min="0" max="50">
+      <div>COTOVELO DIR (0-120)</div><br>
+      <input type="number" id="srvD" value="0" min="0" max="120">
       <button onclick="sendCmd('srv_pos_d:' + document.getElementById('srvD').value)">SET</button>
+      <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:6px;">
+        <button onclick="document.getElementById('srvD').value=0; sendCmd('srv_pos_d:0')">0</button>
+        <button onclick="document.getElementById('srvD').value=60; sendCmd('srv_pos_d:60')">60</button>
+        <button onclick="document.getElementById('srvD').value=120; sendCmd('srv_pos_d:120')">120</button>
+      </div>
     </div>
   </div>
 
-  <!-- ENCODERS DA BASE -->
   <div class="box">
     ENCODERS: M1:<span class="telem" id="enc1">0</span> | M2:<span class="telem" id="enc2">0</span> | M3:<span class="telem" id="enc3">0</span> | M4:<span class="telem" id="enc4">0</span>
   </div>
 
-  <!-- ROTEIRIZADOR DE CENAS -->
   <div class="box" style="text-align:left;">
     <div style="display:flex; gap:6px; flex-wrap:wrap;">
       <button id="btnRec" class="btn-rec" onclick="toggleRec()">🔴 GRAVAR ROTEIRO</button>
-      <button class="btn-play" onclick="testarRoteiroGravado()">▶ TESTAR GRAVACAO</button>
+      <button class="btn-play" onclick="testarRoteiroGravado()">▶ TESTAR GRAVAÇÃO</button>
       <button onclick="limparRoteiro()">LIMPAR</button>
     </div>
     <br>
@@ -178,22 +188,22 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
     let ticks = [0, 0, 0, 0];
     let gyroAtual = 0;
+    let fodAtivo = true;
 
-    // Estado de gravacao
     let gravando = false, inicioRec = 0, passo = 0, m1Start = 0, gyroStart = 0, cmdAtivo = "";
     let eventosGravados = [];
 
-    // Estado de medicao (tecla M)
     let medindo = false;
     let ticksInicioMedicao = [0, 0, 0, 0];
 
-    // Estado do teclado
     const teclasAtivas = {};
     let cmdTecladoAtual = "stop";
+    let intervaloBraco = null;
 
     ws.onopen = () => {
       aplicarForcaBase(document.getElementById("forcaBase").value);
       aplicarForcaBraco(document.getElementById("forcaBraco").value);
+      sendCmd(`fod:${fodAtivo ? 1 : 0}`);
     };
 
     ws.onmessage = (e) => {
@@ -215,6 +225,34 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         document.getElementById("medidaAtualDisp").innerText = distMm.toFixed(1) + " mm";
       }
     };
+
+    function iniciarBraco(cmd) {
+      pararBraco();
+      sendCmd(cmd);
+      // Reenvia o comando a cada 150 ms porque o firmware dos braços possui watchdog que corta o motor se o sinal parar.
+      intervaloBraco = setInterval(() => sendCmd(cmd), 150);
+    }
+
+    function pararBraco() {
+      if (intervaloBraco) {
+        clearInterval(intervaloBraco);
+        intervaloBraco = null;
+      }
+      sendCmd("stop");
+    }
+
+    window.addEventListener("mouseup", () => { if (intervaloBraco) pararBraco(); });
+    window.addEventListener("touchend", () => { if (intervaloBraco) pararBraco(); });
+
+    function toggleFod() {
+      fodAtivo = !fodAtivo;
+      const btn = document.getElementById("btnFod");
+      btn.innerText = fodAtivo ? "🧭 CAMPO: ON" : "🤖 ROBÔ: OFF";
+      btn.style.background = fodAtivo ? "#1B5E20" : "";
+      btn.style.borderColor = fodAtivo ? "#00E676" : "";
+      btn.style.color = fodAtivo ? "#00E676" : "";
+      sendCmd(`fod:${fodAtivo ? 1 : 0}`);
+    }
 
     function calcularDistanciaMediaMm() {
       let somaTicks = 0;
@@ -260,14 +298,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     function aplicarForcaBase(valor) {
       const v = Math.max(0, Math.min(255, parseInt(valor) || 0));
       document.getElementById("forcaBase").value = v;
-      const badge = document.getElementById("badgeRampa");
-      if (v > 60) {
-        badge.innerText = "RAMPA ATIVA (>60)";
-        badge.classList.add("on");
-      } else {
-        badge.innerText = "DIRETO (<=60)";
-        badge.classList.remove("on");
-      }
       if (ws.readyState === WebSocket.OPEN) ws.send(`vel:${v}`);
     }
 
@@ -304,13 +334,22 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       sendCmd(`turn:${angFinal},${vel}`);
     }
 
+    function executarGiroAbsoluto(anguloOpcional) {
+      const alvo = (anguloOpcional !== undefined)
+        ? anguloOpcional
+        : (parseFloat(document.getElementById("anguloAbsoluto").value) || 0);
+      const vel = parseInt(document.getElementById("forcaBase").value) || 120;
+      // Envia turn_to para orientar o chassi a um ângulo fixo da arena (ex.: 0°) sem somar ao ângulo atual.
+      sendCmd(`turn_to:${alvo},${vel}`);
+    }
+
     function toggleRec() {
       gravando = !gravando;
       const btn = document.getElementById("btnRec");
       if (gravando) {
-        btn.innerText = "⏹ PARAR GRAVACAO"; btn.classList.add("ativo");
+        btn.innerText = "⏹ PARAR GRAVAÇÃO"; btn.classList.add("ativo");
         inicioRec = Date.now(); passo = 0; eventosGravados = []; cmdAtivo = "";
-        document.getElementById("codeOut").value = "// Cole dentro de BaseCenas::atualizarCenas()\n";
+        document.getElementById("codeOut").value = "// Cole este bloco dentro de BaseCenas::atualizarCenas() para reproduzir a rotina.\n";
       } else {
         btn.innerText = "🔴 GRAVAR ROTEIRO"; btn.classList.remove("ativo");
       }
@@ -348,7 +387,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       else if (cmdAtivo === "sa") acao = `funcoes_.diagonal(-${dist}f, true, ${vel});`;
       else if (cmdAtivo === "e" || cmdAtivo === "q") acao = `funcoes_.turn(${ang}f, ${vel});`;
 
-      if (acao && parseFloat(dist) > 1.0 || (cmdAtivo === "e" || cmdAtivo === "q")) {
+      if ((acao && parseFloat(dist) > 1.0) || (cmdAtivo === "e" || cmdAtivo === "q")) {
         registrarPasso(tempo, acao);
       }
       cmdAtivo = "";
@@ -360,7 +399,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
       const tempo = Date.now() - inicioRec;
       const velBase = parseInt(document.getElementById("forcaBase").value) || 120;
-      const velBraco = parseInt(document.getElementById("forcaBraco").value) || 130;
 
       if (cmd.startsWith("turn:")) {
         const partes = cmd.substring(5).split(",");
@@ -368,13 +406,19 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         const v = partes[1] || velBase;
         registrarPasso(tempo, `funcoes_.turn(${ang}f, ${v});`);
         eventosGravados.push({ tempo, tipo: "raw", cmd });
+      } else if (cmd.startsWith("turn_to:")) {
+        const partes = cmd.substring(8).split(",");
+        const ang = parseFloat(partes[0]).toFixed(1);
+        const v = partes[1] || velBase;
+        registrarPasso(tempo, `funcoes_.turnTo(${ang}f, ${v});`);
+        eventosGravados.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("srv_pos_e:")) {
         registrarPasso(tempo, `funcoes_.moverCotoveloEsq(${cmd.split(":")[1]}.0f);`);
         eventosGravados.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("srv_pos_d:")) {
         registrarPasso(tempo, `funcoes_.moverCotoveloDir(${cmd.split(":")[1]}.0f);`);
         eventosGravados.push({ tempo, tipo: "raw", cmd });
-      } else if (cmd.startsWith("vel:")) {
+      } else if (cmd.startsWith("vel:") || cmd.startsWith("fod:")) {
         eventosGravados.push({ tempo, tipo: "raw", cmd });
       } else if (cmd === "stop") {
         fecharSegmentoGravado(tempo);
@@ -431,7 +475,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     document.addEventListener("keydown", (ev) => {
       if (ev.repeat) return;
 
-      // Setas esquerda/direita executam o giro preciso mesmo se estiver digitando no campo de angulo
       if (ev.key === "ArrowLeft") {
         ev.preventDefault();
         executarGiroSeta(-1);
@@ -443,7 +486,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         return;
       }
 
-      // Ignora atalhos se estiver digitando dentro de uma caixa de numero
       const tag = document.activeElement?.tagName;
       if (tag === "INPUT" || tag === "TEXTAREA") return;
 

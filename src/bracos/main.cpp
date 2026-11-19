@@ -4,18 +4,19 @@
 #include "bracosCenas.h"
 
 BracosSetup setupBracos;
-BracosFuncoes funcoes;
-BracosCenas cenas(funcoes);
+BracosFuncoes funcoesBracos;
+BracosCenas cenasBracos(funcoesBracos);
 
 void setup() {
     Serial.begin(115200);
     setupBracos.inicializarHardware();
-    funcoes.inicializarServos();
+    funcoesBracos.inicializarServos();
+    setupBracos.inicializarBleSpike();
 }
 
 void loop() {
-    funcoes.processarSerial2(cenas);
-    funcoes.atualizarCinematica();
-    cenas.atualizarCenas();
-    funcoes.enviarTelemetriaSerial2();
+    funcoesBracos.processarSerial2(cenasBracos);
+    cenasBracos.atualizarCenas();
+    funcoesBracos.atualizarCinematica();
+    funcoesBracos.enviarTelemetriaSerial2();
 }
