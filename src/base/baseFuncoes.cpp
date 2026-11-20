@@ -47,11 +47,16 @@ void BaseFuncoes::atualizarAlvoManualMecanum_() {
     float yCampo = 0.0f;
     float rot = 0.0f;
 
-    // Usa 0.7071 (sen/cos de 45°) nas diagonais para que o vetor resultante tenha norma unitária igual aos eixos puros.
-    if (ultimoCmdManual_ == "w") { yCampo = 1.0f; }
+    // Aceita vetor contínuo "mov" para combinar translação e giro ao mesmo tempo, mantendo atalhos legados.
+    if (ultimoCmdManual_ == "mov") {
+        xCampo = manualX_;
+        yCampo = manualY_;
+        rot = manualRot_;
+    } else if (ultimoCmdManual_ == "w") { yCampo = 1.0f; }
     else if (ultimoCmdManual_ == "s") { yCampo = -1.0f; }
     else if (ultimoCmdManual_ == "d") { xCampo = 1.0f; }
     else if (ultimoCmdManual_ == "a") { xCampo = -1.0f; }
+    // Usa 0.7071 (sen/cos de 45°) nas diagonais para que o vetor resultante tenha norma unitária igual aos eixos puros.
     else if (ultimoCmdManual_ == "wd") { xCampo = 0.7071f; yCampo = 0.7071f; }
     else if (ultimoCmdManual_ == "wa") { xCampo = -0.7071f; yCampo = 0.7071f; }
     else if (ultimoCmdManual_ == "sd") { xCampo = 0.7071f; yCampo = -0.7071f; }
@@ -66,7 +71,7 @@ void BaseFuncoes::atualizarAlvoManualMecanum_() {
         float rad = getGyroRelativo() * DEG_TO_RAD;
         float cosA = cosf(rad);
         float sinA = sinf(rad);
-        // Aplica matriz de rotação 2D para converter a direção da arena no referencial local do robô.
+        // Aplica matriz de rotação 2D para converter a direção da arena no referencial local enquanto o robô gira.
         xRobo = xCampo * cosA - yCampo * sinA;
         yRobo = xCampo * sinA + yCampo * cosA;
     }
@@ -76,7 +81,7 @@ void BaseFuncoes::atualizarAlvoManualMecanum_() {
     float rl = yRobo - xRobo + rot;
     float rr = yRobo + xRobo - rot;
 
-    // Divide pelo maior módulo quando excede 1.0 para preservar a direção do movimento sem saturar o PWM.
+    // Divide pelo maior módulo quando excede 1.0 para preservar a proporção entre translação e rotação sem saturar.
     float maxMag = max(max(fabsf(fl), fabsf(fr)), max(fabsf(rl), fabsf(rr)));
     if (maxMag > 1.0f) {
         fl /= maxMag;
@@ -96,12 +101,15 @@ void BaseFuncoes::atualizarAlvoManualMecanum_() {
 
 void BaseFuncoes::parar() {
     definirAlvoMecanum_(0, 0, 0, 0);
+    manualX_ = manualY_ = manualRot_ = 0.0f;
     ultimoCmdManual_ = "stop";
 
-    if (pwmAtualFL_ == 0 && pwmAtualFR_ == 0 && pwmAtualRL_ == 0 && pwmAtualRR_ == 0) {
+    if (fabsf(pwmAtualFL_) < 0.5f && fabsf(pwmAtualFR_) < 0.5f &&
+        fabsf(pwmAtualRL_) < 0.5f && fabsf(pwmAtualRR_) < 0.5f) {
+        pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0.0f;
         modoAtual_ = ModoTracao::Parado;
     } else {
-        // Mantém o modo Manual ativo até que a rampa reduza gradualmente o PWM atual das rodas a zero.
+        // Mantém o modo Manual ativo até que a rampa de frenagem reduza o PWM atual das rodas a zero.
         modoAtual_ = ModoTracao::Manual;
     }
 }
@@ -109,7 +117,8 @@ void BaseFuncoes::parar() {
 void BaseFuncoes::pararBrusco() {
     // Zera os PWMs imediatamente sem rampa para impedir que a inércia faça o robô passar do alvo autônomo.
     definirAlvoMecanum_(0, 0, 0, 0);
-    pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0;
+    manualX_ = manualY_ = manualRot_ = 0.0f;
+    pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0.0f;
     acionarMecanum_(0, 0, 0, 0);
     ultimoCmdManual_ = "stop";
     modoAtual_ = ModoTracao::Parado;
@@ -159,6 +168,15 @@ void BaseFuncoes::turnTo(float anguloAlvo, int velocidade) {
     modoAtual_ = ModoTracao::Turn;
 }
 
+void BaseFuncoes::moverGirando(float xCampo, float yCampo, float anguloGraus, int velocidade) {
+    autoX_ = constrain(xCampo, -1.0f, 1.0f);
+    autoY_ = constrain(yCampo, -1.0f, 1.0f);
+    alvoAngulo_ = getGyroRelativo() + anguloGraus;
+    velAlvo_ = constrain(velocidade, kPwmMinBase, kPwmMax);
+    inicioTurnMs_ = millis();
+    modoAtual_ = ModoTracao::MovGirando;
+}
+
 void BaseFuncoes::moverOmbroEsq(float graus, int velocidade) {
     Serial2.printf("OMB_POS_E:%.1f,%d\n", graus, velocidade);
 }
@@ -192,8 +210,33 @@ void BaseFuncoes::processarComandoManual(const String& cmd) {
         return;
     }
 
+    // Permite ajustar ao vivo a suavidade da arrancada e da frenagem (em PWM por 100 ms) sem regravar o código.
+    if (cmd.startsWith("acel:")) {
+        passoAcelPwm_ = constrain(cmd.substring(5).toInt(), 1, kPwmMax);
+        return;
+    }
+
+    if (cmd.startsWith("freio:")) {
+        passoFreioPwm_ = constrain(cmd.substring(6).toInt(), 1, kPwmMax);
+        return;
+    }
+
     if (cmd.startsWith("vel_braco:")) {
         Serial2.println(cmd);
+        return;
+    }
+
+    if (cmd.startsWith("mov:")) {
+        int v1 = cmd.indexOf(',');
+        int v2 = cmd.indexOf(',', v1 + 1);
+        if (v1 > 4 && v2 > v1) {
+            manualX_ = constrain(cmd.substring(4, v1).toFloat(), -1.0f, 1.0f);
+            manualY_ = constrain(cmd.substring(v1 + 1, v2).toFloat(), -1.0f, 1.0f);
+            manualRot_ = constrain(cmd.substring(v2 + 1).toFloat(), -1.0f, 1.0f);
+            modoAtual_ = ModoTracao::Manual;
+            ultimoCmdManual_ = "mov";
+            atualizarAlvoManualMecanum_();
+        }
         return;
     }
 
@@ -253,21 +296,33 @@ void BaseFuncoes::processarSerial2() {
     }
 }
 
-int BaseFuncoes::calcularPassoRampa_(int atual, int alvo) {
-    if (atual == alvo) return alvo;
+float BaseFuncoes::calcularPassoRampa_(float atual, float alvo) {
+    if (fabsf(alvo - atual) <= 0.01f) return alvo;
 
-    // Reduz a velocidade até zero antes de inverter a polaridade para proteger as caixas de redução dos motores.
-    if (atual > 0 && alvo < 0) return max(0, atual - kPassoRampaPwm);
-    if (atual < 0 && alvo > 0) return min(0, atual + kPassoRampaPwm);
+    // Converte a taxa definida por 100 ms para o incremento proporcional ao ciclo atual de kIntervaloRampaMs.
+    float escala = static_cast<float>(kIntervaloRampaMs) / 100.0f;
+    float passoAcel = passoAcelPwm_ * escala;
+    float passoFreio = passoFreioPwm_ * escala;
+
+    // Desacelera suavemente até zero antes de inverter a polaridade para evitar trancos na ponte H BTS7960.
+    if (atual > 0.0f && alvo < 0.0f) return max(0.0f, atual - passoFreio);
+    if (atual < 0.0f && alvo > 0.0f) return min(0.0f, atual + passoFreio);
 
     // Parte direto de kPwmInicialRampa ao sair do repouso para vencer a zona morta mecânica sem atraso.
-    if (atual == 0) {
-        if (alvo > 0) return min(alvo, kPwmInicialRampa);
-        return max(alvo, -kPwmInicialRampa);
+    if (fabsf(atual) < 0.5f) {
+        if (alvo > 0.0f) return min(alvo, static_cast<float>(kPwmInicialRampa));
+        return max(alvo, -static_cast<float>(kPwmInicialRampa));
     }
 
-    if (atual < alvo) return min(alvo, atual + kPassoRampaPwm);
-    return max(alvo, atual - kPassoRampaPwm);
+    // Reduz o PWM gradualmente até zero sem corte brusco final para evitar travamento regenerativo da BTS7960.
+    if (fabsf(alvo) < fabsf(atual)) {
+        if (atual > 0.0f) return max(alvo, atual - passoFreio);
+        return min(alvo, atual + passoFreio);
+    }
+
+    // Usa passoAcel ao ganhar velocidade para evitar patinagem das rodas e picos de corrente.
+    if (atual < alvo) return min(alvo, atual + passoAcel);
+    return max(alvo, atual - passoAcel);
 }
 
 void BaseFuncoes::atualizarCinematica() {
@@ -293,10 +348,58 @@ void BaseFuncoes::atualizarCinematica() {
         int pwm = (erroGraus > 0) ? pwmProporcional : -pwmProporcional;
 
         // Zera a inércia da rampa ao inverter o sinal do erro para corrigir eventuais ultrapassagens imediatamente.
-        if ((pwm > 0 && pwmAtualFL_ < 0) || (pwm < 0 && pwmAtualFL_ > 0)) {
-            pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0;
+        if ((pwm > 0 && pwmAtualFL_ < 0.0f) || (pwm < 0 && pwmAtualFL_ > 0.0f)) {
+            pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0.0f;
         }
         definirAlvoMecanum_(pwm, -pwm, pwm, -pwm);
+    } else if (modoAtual_ == ModoTracao::MovGirando) {
+        // Interrompe após 5 s para impedir deslocamento infinito caso o giroscópio pare de atualizar via UART.
+        if (millis() - inicioTurnMs_ > 5000) {
+            pararBrusco();
+            return;
+        }
+
+        float erroGraus = alvoAngulo_ - getGyroRelativo();
+        if (abs(erroGraus) <= 2.0f) {
+            pararBrusco();
+            return;
+        }
+
+        float xRobo = autoX_;
+        float yRobo = autoY_;
+        if (fieldOriented_ && (autoX_ != 0.0f || autoY_ != 0.0f)) {
+            float rad = getGyroRelativo() * DEG_TO_RAD;
+            float cosA = cosf(rad);
+            float sinA = sinf(rad);
+            // Atualiza o referencial local continuamente porque a orientação do chassi muda enquanto gira.
+            xRobo = autoX_ * cosA - autoY_ * sinA;
+            yRobo = autoX_ * sinA + autoY_ * cosA;
+        }
+
+        // Mantém piso mínimo de 0.35 na componente de giro para concluir o ângulo final sem perder tração.
+        float magRot = constrain(fabsf(erroGraus) / 45.0f, 0.35f, 1.0f);
+        float rot = (erroGraus > 0.0f) ? magRot : -magRot;
+
+        float fl = yRobo + xRobo + rot;
+        float fr = yRobo - xRobo - rot;
+        float rl = yRobo - xRobo + rot;
+        float rr = yRobo + xRobo - rot;
+
+        // Normaliza pelo maior módulo para manter translação e rotação proporcionais dentro de velAlvo_.
+        float maxMag = max(max(fabsf(fl), fabsf(fr)), max(fabsf(rl), fabsf(rr)));
+        if (maxMag > 1.0f) {
+            fl /= maxMag;
+            fr /= maxMag;
+            rl /= maxMag;
+            rr /= maxMag;
+        }
+
+        definirAlvoMecanum_(
+            static_cast<int>(roundf(fl * velAlvo_)),
+            static_cast<int>(roundf(fr * velAlvo_)),
+            static_cast<int>(roundf(rl * velAlvo_)),
+            static_cast<int>(roundf(rr * velAlvo_))
+        );
     } else if (modoAtual_ != ModoTracao::Manual && modoAtual_ != ModoTracao::Parado) {
         noInterrupts();
         long atualM1 = ticksM1;
@@ -330,11 +433,18 @@ void BaseFuncoes::atualizarCinematica() {
     pwmAtualRL_ = calcularPassoRampa_(pwmAtualRL_, pwmAlvoRL_);
     pwmAtualRR_ = calcularPassoRampa_(pwmAtualRR_, pwmAlvoRR_);
 
-    acionarMecanum_(pwmAtualFL_, pwmAtualFR_, pwmAtualRL_, pwmAtualRR_);
+    acionarMecanum_(
+        static_cast<int>(roundf(pwmAtualFL_)),
+        static_cast<int>(roundf(pwmAtualFR_)),
+        static_cast<int>(roundf(pwmAtualRL_)),
+        static_cast<int>(roundf(pwmAtualRR_))
+    );
 
     if (modoAtual_ == ModoTracao::Manual &&
         pwmAlvoFL_ == 0 && pwmAlvoFR_ == 0 && pwmAlvoRL_ == 0 && pwmAlvoRR_ == 0 &&
-        pwmAtualFL_ == 0 && pwmAtualFR_ == 0 && pwmAtualRL_ == 0 && pwmAtualRR_ == 0) {
+        fabsf(pwmAtualFL_) < 0.5f && fabsf(pwmAtualFR_) < 0.5f &&
+        fabsf(pwmAtualRL_) < 0.5f && fabsf(pwmAtualRR_) < 0.5f) {
+        pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0.0f;
         modoAtual_ = ModoTracao::Parado;
     }
 }
