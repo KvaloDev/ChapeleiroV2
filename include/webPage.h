@@ -216,7 +216,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     let movX = 0, movY = 0, movRot = 0, movPicoMag = 0;
     let bracoAtivo = "", ticksBracoStart = 0;
 
-    // Identifica cada segmento contínuo para substituir giros manuais em malha aberta por comandos de giroscópio no replay.
+    // Identifica cada segmento contínuo para substituir giros manuais em malha aberta por comandos absolutos no replay.
     let contadorSegmentos = 0;
     let segAtualId = 0;
     let segInicioTempo = 0;
@@ -278,6 +278,16 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         document.getElementById("medidaAtualDisp").innerText = distMm.toFixed(1) + " mm";
       }
     };
+
+    function normalizarAngulo180(ang) {
+      let a = ang % 360.0;
+      if (a > 180.0) a -= 360.0;
+      if (a <= -180.0) a += 360.0;
+      // Normaliza -180° para +180° por convenção de leitura no código gerado.
+      if (Math.abs(a + 180.0) < 0.05) a = 180.0;
+      if (Math.abs(a) < 0.05) a = 0.0;
+      return a.toFixed(1);
+    }
 
     function aplicarZonaMorta(valor, zonaMorta = 0.10) {
       if (Math.abs(valor) < zonaMorta) return 0;
@@ -388,7 +398,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         gpLbAnterior = btnLb;
         gpRbAnterior = btnRb;
 
-        // D-Pad esquerda (14) e direita (15): giro relativo usando o valor atual de anguloGiro.
+        // D-Pad esquerda (14) e direita (15): giro relativo acumulado sobre o alvo absoluto atual.
         let dpadEsq = !!(gp.buttons[14] && gp.buttons[14].pressed);
         let dpadDir = !!(gp.buttons[15] && gp.buttons[15].pressed);
 
@@ -727,17 +737,15 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       });
     }
 
-    function substituirGiroNoReplay(segId, tempoInicio, anguloDelta, vel) {
-      // Remove os comandos brutos em malha aberta do giro manual e injeta turn: fechado pelo giroscópio do SPIKE.
+    function substituirGiroNoReplay(segId, tempoInicio, anguloAbsolutoFinal, vel) {
+      // Remove os comandos brutos em malha aberta do giro manual e injeta turn_to: pela orientação absoluta do SPIKE.
       eventosGravados = eventosGravados.filter((e) => e.segId !== segId);
-      if (Math.abs(parseFloat(anguloDelta)) > 0.5) {
-        eventosGravados.push({
-          tempo: tempoInicio,
-          tipo: "raw",
-          cmd: `turn:${anguloDelta},${vel}`,
-          parte: parteAtualId
-        });
-      }
+      eventosGravados.push({
+        tempo: tempoInicio,
+        tipo: "raw",
+        cmd: `turn_to:${anguloAbsolutoFinal},${vel}`,
+        parte: parteAtualId
+      });
     }
 
     function fecharSegmentoGravado(tempo) {
@@ -747,6 +755,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       const ticksDesloc = Math.max(Math.abs(ticks[0] - m1Start), Math.abs(ticks[1] - m2Start));
       const dist = (ticksDesloc / kTicksPorMm).toFixed(1);
       const ang = (gyroAtual - gyroStart).toFixed(1);
+      const angAbsFinal = normalizarAngulo180(gyroAtual);
       let acao = "";
 
       if (cmdAtivo === "w") acao = `funcoes_.run(${dist}f, ${vel});`;
@@ -758,16 +767,17 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       else if (cmdAtivo === "sd") acao = `funcoes_.diagonal(-${dist}f, false, ${vel});`;
       else if (cmdAtivo === "sa") acao = `funcoes_.diagonal(-${dist}f, true, ${vel});`;
       else if (cmdAtivo === "e" || cmdAtivo === "q") {
-        acao = `funcoes_.turn(${ang}f, ${vel});`;
-        substituirGiroNoReplay(segAtualId, segInicioTempo, ang, vel);
+        // Grava a orientação absoluta final para evitar acúmulo de erro entre passos na rotina autônoma.
+        acao = `funcoes_.turnTo(${angAbsFinal}f, ${vel});`;
+        substituirGiroNoReplay(segAtualId, segInicioTempo, angAbsFinal, vel);
       } else if (cmdAtivo === "mov") {
         const temLinear = movPicoMag > 0.05;
         const temGiro = Math.abs(movRot) > 0.05;
         if (temLinear && temGiro && Math.abs(parseFloat(ang)) > 1.0) {
           acao = `funcoes_.moverGirando(${movX.toFixed(2)}f, ${movY.toFixed(2)}f, ${ang}f, ${vel});`;
         } else if (temGiro && !temLinear && Math.abs(parseFloat(ang)) > 1.0) {
-          acao = `funcoes_.turn(${ang}f, ${vel});`;
-          substituirGiroNoReplay(segAtualId, segInicioTempo, ang, vel);
+          acao = `funcoes_.turnTo(${angAbsFinal}f, ${vel});`;
+          substituirGiroNoReplay(segAtualId, segInicioTempo, angAbsFinal, vel);
         } else if (temLinear && !temGiro && parseFloat(dist) > 1.0) {
           const velProp = Math.max(25, Math.round(vel * Math.min(1.0, movPicoMag)));
           const angDir = Math.atan2(movY, movX) * (180.0 / Math.PI);
@@ -806,10 +816,12 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
       if (cmd.startsWith("turn:")) {
         const partes = cmd.substring(5).split(",");
-        const ang = parseFloat(partes[0]).toFixed(1);
+        const delta = parseFloat(partes[0]) || 0;
         const v = partes[1] || velBase;
-        registrarPasso(tempo, `funcoes_.turn(${ang}f, ${v});`);
-        eventosGravados.push({ tempo, tipo: "raw", cmd, parte: parteAtualId });
+        // Converte o giro relativo no alvo absoluto correspondente ao 0° fixo da arena.
+        const angAbs = normalizarAngulo180(gyroAtual + delta);
+        registrarPasso(tempo, `funcoes_.turnTo(${angAbs}f, ${v});`);
+        eventosGravados.push({ tempo, tipo: "raw", cmd: `turn_to:${angAbs},${v}`, parte: parteAtualId });
       } else if (cmd.startsWith("turn_to:")) {
         const partes = cmd.substring(8).split(",");
         const ang = parseFloat(partes[0]).toFixed(1);
@@ -872,7 +884,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         const tinhaSegmento = (cmdAtivo !== "");
         const segFechadoId = segAtualId;
         fecharSegmentoGravado(tempo);
-        // Só registra "stop" bruto se não acabou de ser substituído por um turn: fechado pelo giroscópio.
+        // Só registra "stop" bruto se não acabou de ser substituído por um turn_to: fechado pelo giroscópio.
         if (!tinhaSegmento || eventosGravados.some((e) => e.segId === segFechadoId)) {
           eventosGravados.push({ tempo, tipo: "raw", cmd: "stop", parte: parteAtualId });
         }

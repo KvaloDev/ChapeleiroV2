@@ -12,7 +12,7 @@ public:
     void run(float distanciaMm, int velocidade);
     void strafe(float distanciaMm, int velocidade);
     void diagonal(float distanciaMm, bool isDireita, int velocidade);
-    // Soma graus à orientação atual para realizar uma rotação relativa ao ponto de partida.
+    // Soma graus ao alvo absoluto vigente para rotacionar sem acumular erros residuais de giros anteriores.
     void turn(float graus, int velocidade);
     // Orienta o chassi na direção absoluta equivalente (módulo 360°) pelo menor caminho angular (<= 180°).
     void turnTo(float anguloAlvo, int velocidade);
@@ -43,6 +43,7 @@ public:
     float getGyroRelativo() const;
 
 private:
+    void iniciarControleTurn_(float alvoContinuo, int velocidade);
     void atualizarAlvoManualMecanum_();
     void definirAlvoMecanum_(int fl, int fr, int rl, int rr);
     void aplicarPwmRoda_(uint8_t pinF, uint8_t pinT, int pwm);
@@ -76,11 +77,20 @@ private:
     long inicioM1_ = 0;
     float alvoTicks_ = 0.0f;
     float alvoAngulo_ = 0.0f;
+    // Mantém a referência absoluta acumulada para eliminar desvio progressivo entre giros relativos seguidos.
+    float headingAlvoAbsoluto_ = 0.0f;
+    bool gyroManualSujo_ = false;
     float offsetGyro_ = 0.0f;
     int velAlvo_ = 0;
-    // Registra o início do giro para abortar por segurança caso a leitura do SPIKE falhe no meio da rotação.
+
+    // Variáveis do controlador PD e assentamento fino para evitar ultrapassagem por inércia nos giros precisos.
     unsigned long inicioTurnMs_ = 0;
+    float ultimoGyroTurn_ = 0.0f;
+    unsigned long ultimoTempoGyroTurnMs_ = 0;
+    float velAngularFiltrada_ = 0.0f;
+    float boostAntiStallTurn_ = 0.0f;
+    unsigned long inicioEstavelTurnMs_ = 0;
 
     long ticksOmbroEsq_ = 0;
     long ticksOmbroDir_ = 0;
-};
+}; 

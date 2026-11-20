@@ -10,6 +10,8 @@ float BaseFuncoes::getGyroRelativo() const {
 
 void BaseFuncoes::zerarGyro() {
     offsetGyro_ = anguloSpikeGraus;
+    headingAlvoAbsoluto_ = 0.0f;
+    gyroManualSujo_ = false;
 }
 
 void BaseFuncoes::aplicarPwmRoda_(uint8_t pinF, uint8_t pinT, int pwm) {
@@ -63,6 +65,11 @@ void BaseFuncoes::atualizarAlvoManualMecanum_() {
     else if (ultimoCmdManual_ == "sa") { xCampo = -0.7071f; yCampo = -0.7071f; }
     else if (ultimoCmdManual_ == "q") { rot = -1.0f; }
     else if (ultimoCmdManual_ == "e") { rot = 1.0f; }
+
+    // Marca o heading como alterado manualmente para que o próximo giro relativo parta da nova orientação.
+    if (fabsf(rot) > 0.01f) {
+        gyroManualSujo_ = true;
+    }
 
     float xRobo = xCampo;
     float yRobo = yCampo;
@@ -146,14 +153,32 @@ void BaseFuncoes::diagonal(float distanciaMm, bool isDireita, int velocidade) {
     modoAtual_ = isDireita ? ModoTracao::DiagonalDir : ModoTracao::DiagonalEsq;
 }
 
-void BaseFuncoes::turn(float graus, int velocidade) {
-    alvoAngulo_ = getGyroRelativo() + graus;
+void BaseFuncoes::iniciarControleTurn_(float alvoContinuo, int velocidade) {
+    alvoAngulo_ = alvoContinuo;
     velAlvo_ = constrain(velocidade, kPwmMinBase, kPwmMax);
     inicioTurnMs_ = millis();
+    ultimoGyroTurn_ = getGyroRelativo();
+    ultimoTempoGyroTurnMs_ = inicioTurnMs_;
+    velAngularFiltrada_ = 0.0f;
+    boostAntiStallTurn_ = 0.0f;
+    inicioEstavelTurnMs_ = 0;
     modoAtual_ = ModoTracao::Turn;
 }
 
+void BaseFuncoes::turn(float graus, int velocidade) {
+    // Se houve giro manual anterior, atualiza a âncora antes de somar; caso contrário acumula sobre o alvo absoluto.
+    if (gyroManualSujo_) {
+        headingAlvoAbsoluto_ = getGyroRelativo();
+        gyroManualSujo_ = false;
+    }
+    headingAlvoAbsoluto_ += graus;
+    turnTo(headingAlvoAbsoluto_, velocidade);
+}
+
 void BaseFuncoes::turnTo(float anguloAlvo, int velocidade) {
+    headingAlvoAbsoluto_ = anguloAlvo;
+    gyroManualSujo_ = false;
+
     float atual = getGyroRelativo();
     float diferenca = anguloAlvo - atual;
 
@@ -162,16 +187,15 @@ void BaseFuncoes::turnTo(float anguloAlvo, int velocidade) {
     while (diferenca < -180.0f) diferenca += 360.0f;
 
     // Soma o menor deslocamento à leitura contínua atual para evitar saltos de referência ao cruzar 0°/360°.
-    alvoAngulo_ = atual + diferenca;
-    velAlvo_ = constrain(velocidade, kPwmMinBase, kPwmMax);
-    inicioTurnMs_ = millis();
-    modoAtual_ = ModoTracao::Turn;
+    iniciarControleTurn_(atual + diferenca, velocidade);
 }
 
 void BaseFuncoes::moverGirando(float xCampo, float yCampo, float anguloGraus, int velocidade) {
     autoX_ = constrain(xCampo, -1.0f, 1.0f);
     autoY_ = constrain(yCampo, -1.0f, 1.0f);
     alvoAngulo_ = getGyroRelativo() + anguloGraus;
+    headingAlvoAbsoluto_ = alvoAngulo_;
+    gyroManualSujo_ = false;
     velAlvo_ = constrain(velocidade, kPwmMinBase, kPwmMax);
     inicioTurnMs_ = millis();
     modoAtual_ = ModoTracao::MovGirando;
@@ -299,6 +323,12 @@ void BaseFuncoes::processarSerial2() {
 float BaseFuncoes::calcularPassoRampa_(float atual, float alvo) {
     if (fabsf(alvo - atual) <= 0.01f) return alvo;
 
+    // Durante giros fechados pelo giroscópio, permite queda imediata de PWM para o controlador PD frear sem atraso.
+    if (modoAtual_ == ModoTracao::Turn) {
+        if ((atual > 0.0f && alvo <= 0.0f) || (atual < 0.0f && alvo >= 0.0f)) return alvo;
+        if (fabsf(alvo) <= fabsf(atual)) return alvo;
+    }
+
     // Converte a taxa definida por 100 ms para o incremento proporcional ao ciclo atual de kIntervaloRampaMs.
     float escala = static_cast<float>(kIntervaloRampaMs) / 100.0f;
     float passoAcel = passoAcelPwm_ * escala;
@@ -329,28 +359,61 @@ void BaseFuncoes::atualizarCinematica() {
     if (modoAtual_ == ModoTracao::Manual && ultimoCmdManual_ != "stop") {
         atualizarAlvoManualMecanum_();
     } else if (modoAtual_ == ModoTracao::Turn) {
+        unsigned long agoraMs = millis();
         // Interrompe o giro após 5 s para impedir rotação infinita caso a ESP32 dos braços pare de enviar o giroscópio.
-        if (millis() - inicioTurnMs_ > 5000) {
+        if (agoraMs - inicioTurnMs_ > 5000) {
             pararBrusco();
             return;
         }
 
-        float erroGraus = alvoAngulo_ - getGyroRelativo();
-        // Usa banda morta de +-2° para encerrar o giro sem ficar oscilando em torno do ponto de parada.
-        if (abs(erroGraus) <= 2.0f) {
-            pararBrusco();
-            return;
+        float gyroAtual = getGyroRelativo();
+        float erroGraus = alvoAngulo_ - gyroAtual;
+        float magErro = fabsf(erroGraus);
+
+        unsigned long dtMs = agoraMs - ultimoTempoGyroTurnMs_;
+        if (dtMs >= 20) {
+            float velInst = (gyroAtual - ultimoGyroTurn_) * (1000.0f / static_cast<float>(dtMs));
+            // Suaviza a derivada angular para amortecer o atraso de 20 ms da telemetria Serial2.
+            velAngularFiltrada_ = 0.55f * velAngularFiltrada_ + 0.45f * velInst;
+            ultimoGyroTurn_ = gyroAtual;
+            ultimoTempoGyroTurnMs_ = agoraMs;
         }
 
-        // Garante piso mínimo de PWM maior no giro para vencer o arrasto lateral dos roletes mecanum perto do alvo.
-        int pisoGiro = min(velAlvo_, max(kPwmMinBase, 55));
-        int pwmProporcional = constrain(static_cast<int>(abs(erroGraus) * 2.2f), pisoGiro, velAlvo_);
-        int pwm = (erroGraus > 0) ? pwmProporcional : -pwmProporcional;
-
-        // Zera a inércia da rampa ao inverter o sinal do erro para corrigir eventuais ultrapassagens imediatamente.
-        if ((pwm > 0 && pwmAtualFL_ < 0.0f) || (pwm < 0 && pwmAtualFL_ > 0.0f)) {
+        // Corta o PWM dentro de +-0,8° e aguarda 90 ms para confirmar que a inércia não levou o chassi além do alvo.
+        if (magErro <= 0.8f) {
             pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0.0f;
+            definirAlvoMecanum_(0, 0, 0, 0);
+            acionarMecanum_(0, 0, 0, 0);
+            boostAntiStallTurn_ = 0.0f;
+
+            if (inicioEstavelTurnMs_ == 0) {
+                inicioEstavelTurnMs_ = agoraMs;
+            } else if ((agoraMs - inicioEstavelTurnMs_) >= 90 && fabsf(velAngularFiltrada_) < 20.0f) {
+                pararBrusco();
+            }
+            return;
         }
+        inicioEstavelTurnMs_ = 0;
+
+        // Curva raiz quadrada reduz a velocidade gradualmente perto do alvo para frear sem tranco nem ultrapassagem.
+        float pwmCurva = 24.0f + sqrtf(magErro) * 18.5f;
+
+        // Eleva gradualmente o torque mínimo se o atrito do piso travar o robô nos últimos graus de alinhamento.
+        if (magErro <= 12.0f && fabsf(velAngularFiltrada_) < 6.0f) {
+            boostAntiStallTurn_ = min(32.0f, boostAntiStallTurn_ + 0.45f);
+        } else if (fabsf(velAngularFiltrada_) >= 10.0f) {
+            boostAntiStallTurn_ = max(0.0f, boostAntiStallTurn_ - 1.5f);
+        }
+        pwmCurva += boostAntiStallTurn_;
+
+        float sinalErro = (erroGraus > 0.0f) ? 1.0f : -1.0f;
+        // Termo derivativo reduz o PWM antecipadamente conforme a velocidade angular de aproximação.
+        float pwmControlado = (sinalErro * pwmCurva) - (0.32f * velAngularFiltrada_);
+
+        int pisoGiro = min(velAlvo_, max(kPwmMinBase, 26));
+        int magFinal = constrain(static_cast<int>(roundf(fabsf(pwmControlado))), pisoGiro, velAlvo_);
+        int pwm = (pwmControlado >= 0.0f) ? magFinal : -magFinal;
+
         definirAlvoMecanum_(pwm, -pwm, pwm, -pwm);
     } else if (modoAtual_ == ModoTracao::MovGirando) {
         // Interrompe após 5 s para impedir deslocamento infinito caso o giroscópio pare de atualizar via UART.
