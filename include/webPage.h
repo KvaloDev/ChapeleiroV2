@@ -29,20 +29,38 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     .preset-card { background: var(--bg); border: 1px solid var(--btn); border-radius: 6px; padding: 6px; }
     .preset-card.ativo { border: 2px solid var(--yellow); }
     .preset-card input { width: 54px; padding: 4px; margin-top: 4px; }
-    .rec-box { width: 100%; height: 155px; background: #02050A; color: #00FF66; font-family: monospace; font-size: 12px; border: 1px solid var(--btn); padding: 8px; box-sizing: border-box; }
+    .rec-box { width: 100%; height: 130px; background: #02050A; color: #00FF66; font-family: monospace; font-size: 12px; border: 1px solid var(--btn); padding: 8px; box-sizing: border-box; user-select: text; }
     .btn-rec { background: var(--red); border-color: var(--red); }
     .btn-rec.ativo { background: #555; border-color: #555; }
     .btn-cont { background: #0277BD; border-color: #29B6F6; color: #FFF; }
     .btn-overdub { background: #E65100; border-color: #FF9800; color: #FFF; }
     .btn-play { background: #1B5E20; border-color: var(--green); color: var(--green); }
+    .btn-add { background: #283593; border-color: #7986CB; color: #FFF; }
+    .btn-modo-base { background: #0D47A1; border-color: #42A5F5; color: #FFF; }
+    .btn-modo-bracos { background: #6A1B9A; border-color: #CE93D8; color: #FFF; }
+    .btn-cha { background: #00695C; border-color: #4DB6AC; color: #FFF; }
+    .btn-sm { padding: 5px 9px; font-size: 11px; }
     .medida-bar { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; margin-top: 8px; min-height: 28px; }
     .chip-medida { background: var(--bg); border: 1px solid var(--green); color: var(--green); padding: 4px 10px; border-radius: 14px; font-family: monospace; font-size: 13px; cursor: pointer; }
     .rampa-row { display: flex; gap: 8px; justify-content: center; align-items: center; font-size: 12px; color: #CCC; }
     .rampa-row input { width: 48px; padding: 4px; font-size: 12px; }
-    .gamepad-status { font-size: 12px; margin-top: 8px; padding: 4px 8px; border-radius: 4px; background: var(--bg); color: #AAA; border: 1px solid var(--btn); }
+    .gamepad-status { font-size: 12px; margin-top: 6px; padding: 4px 8px; border-radius: 4px; background: var(--bg); color: #AAA; border: 1px solid var(--btn); }
     .gamepad-status.conectado { color: var(--green); border-color: var(--green); }
-    .gamepad-status.digitando { color: var(--yellow); border-color: var(--yellow); background: #261E00; font-weight: bold; }
+    .gamepad-status.digitando { color: var(--bg); background: var(--yellow); border-color: var(--yellow); font-weight: bold; }
+    .gamepad-status.erro { color: #FF8A80; border-color: var(--red); cursor: pointer; }
+    .gamepad-legenda { font-size: 10px; color: #90CAF9; margin-top: 4px; line-height: 1.35; }
+    .visor-digitado { display: none; margin-top: 6px; padding: 5px 8px; border-radius: 4px; background: var(--yellow); color: var(--bg); font-family: monospace; font-weight: bold; font-size: 13px; }
     .rec-info { font-size: 12px; color: #CCC; margin-top: 6px; font-family: monospace; }
+    .tabela-partes { width: 100%; border-collapse: collapse; margin-top: 10px; background: var(--bg); border: 1px solid var(--btn); border-radius: 6px; overflow: hidden; }
+    .tabela-partes th { background: #101E4A; color: var(--yellow); font-size: 12px; text-transform: uppercase; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--btn); }
+    .tabela-partes td { padding: 8px 10px; border-bottom: 1px solid #13224F; vertical-align: top; }
+    .parte-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
+    .parte-titulo { font-weight: bold; color: var(--yellow); font-size: 13px; }
+    .parte-meta { font-family: monospace; font-size: 11px; color: #90CAF9; margin-left: 6px; }
+    .parte-acoes { display: flex; gap: 6px; }
+    .parte-code { width: 100%; min-height: 82px; background: #02050A; color: #00FF66; font-family: monospace; font-size: 12px; border: 1px solid #1E3270; border-radius: 4px; padding: 6px; box-sizing: border-box; resize: vertical; user-select: text; }
+    .parte-code:focus { outline: none; border-color: var(--yellow); }
+    .vazio-partes { text-align: center; color: #888; font-size: 12px; padding: 14px; }
   </style>
 </head>
 <body oncontextmenu="return false;">
@@ -58,17 +76,27 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         <button id="btnFod" onclick="toggleFod()" style="background:#1B5E20; border-color:var(--green); color:var(--green);">🧭 CAMPO: ON</button>
         <button onclick="sendCmd('cena_1')" style="border-color:var(--yellow);">CENA 1</button>
       </div>
+      <div style="margin-top:6px;">
+        <button id="btnModoControle" class="btn-modo-base" style="width:100%;" onclick="alternarModoControleGamepad()">🎮 CONTROLE: BASE (Tab p/ Braços)</button>
+      </div>
+      <div id="wsStatus" class="gamepad-status erro" onclick="conectarWebSocket()">🔴 Wi-Fi / WS: Conectando...</div>
       <div id="gamepadStatus" class="gamepad-status">🎮 Controle: Desconectado (aperte um botão)</div>
+      <div id="gamepadLegenda" class="gamepad-legenda">BASE | Y:0° B:+90° A:180° X:-90° | D-Pad ◄►: Giro | Segure LB/RB + Teclado: ±X°</div>
     </div>
 
     <div class="box" style="margin:0;">
-      <h3>Força da Base e Rampa (PWM/100ms)</h3>
+      <h3>Força da Base e Hora do Chá (BLE)</h3>
       <button onclick="alterarForcaBase(-10)">-10</button>
       <input type="number" id="forcaBase" value="120" min="0" max="255" onchange="aplicarForcaBase(this.value)">
       <button onclick="alterarForcaBase(10)">+10</button>
       <div class="rampa-row" style="margin-top:8px;">
         <span>Acel: <input type="number" id="passoAcel" value="8" min="1" max="255" oninput="aplicarRampa()" onkeydown="if(event.key==='Enter')this.blur()"></span>
         <span>Freio: <input type="number" id="passoFreio" value="15" min="1" max="255" oninput="aplicarRampa()" onkeydown="if(event.key==='Enter')this.blur()"></span>
+      </div>
+      <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--btn); display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
+        <span style="font-size:12px;">Canal BLE:</span>
+        <input type="number" id="canalTea" value="10" min="0" max="255" style="width:52px; padding:4px;">
+        <button class="btn-cha btn-sm" onclick="enviarCodigoCha()">☕ ENVIAR 2565 (CHÁ)</button>
       </div>
     </div>
   </div>
@@ -97,10 +125,11 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
   <div class="grid-2">
     <div class="box" style="margin:0;">
-      <h3>Giro Preciso (RB/LB + Teclado ou Y/B/A/X)</h3>
+      <h3>Giro Preciso (D-Pad ◄► ou Setas ←→)</h3>
       <input type="number" id="anguloGiro" value="90" min="1" max="360" step="1"> °
-      <button class="turn" onclick="executarGiroSeta(-1)">↶ ESQ (LB)</button>
-      <button class="turn" onclick="executarGiroSeta(1)">DIR (RB) ↷</button>
+      <button class="turn" onclick="executarGiroSeta(-1)">↶ ESQ (◄)</button>
+      <button class="turn" onclick="executarGiroSeta(1)">DIR (►) ↷</button>
+      <div id="visorGiroDigitado" class="visor-digitado"></div>
       <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--btn);">
         <input type="number" id="anguloAbsoluto" value="0" min="-360" max="360" step="1"> °
         <button onclick="executarGiroAbsoluto()" style="border-color:var(--green); color:var(--green);">IR PARA X°</button>
@@ -148,33 +177,33 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
   <div class="grid-2">
     <div class="box" style="margin:0;">
-      <div>OMBRO ESQ: <span class="telem" id="encBE">0</span></div><br>
-      <button onmousedown="iniciarBraco('be_up')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('be_up')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▲ SOBE</button>
-      <button onmousedown="iniciarBraco('be_dwn')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('be_dwn')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▼ DESCE</button>
+      <div>OMBRO ESQ (Analógico Esq ↕): <span class="telem" id="encBE">0</span></div><br>
+      <button onmousedown="iniciarOmbro('e', 'up')" onmouseup="pararOmbro('e')" onmouseleave="pararOmbro('e')" ontouchstart="event.preventDefault();iniciarOmbro('e', 'up')" ontouchend="pararOmbro('e')" ontouchcancel="pararOmbro('e')">▲ SOBE</button>
+      <button onmousedown="iniciarOmbro('e', 'dwn')" onmouseup="pararOmbro('e')" onmouseleave="pararOmbro('e')" ontouchstart="event.preventDefault();iniciarOmbro('e', 'dwn')" ontouchend="pararOmbro('e')" ontouchcancel="pararOmbro('e')">▼ DESCE</button>
     </div>
     <div class="box" style="margin:0;">
-      <div>OMBRO DIR: <span class="telem" id="encBD">0</span></div><br>
-      <button onmousedown="iniciarBraco('bd_up')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('bd_up')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▲ SOBE</button>
-      <button onmousedown="iniciarBraco('bd_dwn')" onmouseup="pararBraco()" onmouseleave="pararBraco()" ontouchstart="event.preventDefault();iniciarBraco('bd_dwn')" ontouchend="pararBraco()" ontouchcancel="pararBraco()">▼ DESCE</button>
+      <div>OMBRO DIR (Analógico Dir ↕): <span class="telem" id="encBD">0</span></div><br>
+      <button onmousedown="iniciarOmbro('d', 'up')" onmouseup="pararOmbro('d')" onmouseleave="pararOmbro('d')" ontouchstart="event.preventDefault();iniciarOmbro('d', 'up')" ontouchend="pararOmbro('d')" ontouchcancel="pararOmbro('d')">▲ SOBE</button>
+      <button onmousedown="iniciarOmbro('d', 'dwn')" onmouseup="pararOmbro('d')" onmouseleave="pararOmbro('d')" ontouchstart="event.preventDefault();iniciarOmbro('d', 'dwn')" ontouchend="pararOmbro('d')" ontouchcancel="pararOmbro('d')">▼ DESCE</button>
     </div>
     <div class="box" style="margin:0;">
-      <div>COTOVELO ESQ (0-120)</div><br>
+      <div>COTOVELO ESQ (LB ▼ / LT ▲)</div><br>
       <input type="number" id="srvE" value="0" min="0" max="120">
-      <button onclick="sendCmd('srv_pos_e:' + document.getElementById('srvE').value)">SET</button>
+      <button onclick="definirCotovelo('e', document.getElementById('srvE').value)">SET</button>
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:6px;">
-        <button onclick="document.getElementById('srvE').value=0; sendCmd('srv_pos_e:0')">0</button>
-        <button onclick="document.getElementById('srvE').value=60; sendCmd('srv_pos_e:60')">60</button>
-        <button onclick="document.getElementById('srvE').value=120; sendCmd('srv_pos_e:120')">120</button>
+        <button onclick="definirCotovelo('e', 0)">0°</button>
+        <button onclick="definirCotovelo('e', 60)">60°</button>
+        <button onclick="definirCotovelo('e', 120)">120°</button>
       </div>
     </div>
     <div class="box" style="margin:0;">
-      <div>COTOVELO DIR (0-120)</div><br>
+      <div>COTOVELO DIR (RB ▼ / RT ▲)</div><br>
       <input type="number" id="srvD" value="0" min="0" max="120">
-      <button onclick="sendCmd('srv_pos_d:' + document.getElementById('srvD').value)">SET</button>
+      <button onclick="definirCotovelo('d', document.getElementById('srvD').value)">SET</button>
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:6px;">
-        <button onclick="document.getElementById('srvD').value=0; sendCmd('srv_pos_d:0')">0</button>
-        <button onclick="document.getElementById('srvD').value=60; sendCmd('srv_pos_d:60')">60</button>
-        <button onclick="document.getElementById('srvD').value=120; sendCmd('srv_pos_d:120')">120</button>
+        <button onclick="definirCotovelo('d', 0)">0°</button>
+        <button onclick="definirCotovelo('d', 60)">60°</button>
+        <button onclick="definirCotovelo('d', 120)">120°</button>
       </div>
     </div>
   </div>
@@ -188,23 +217,40 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       <button id="btnRec" class="btn-rec" onclick="toggleRec('novo')">🔴 GRAVAR DO ZERO</button>
       <button id="btnContinuar" class="btn-cont" onclick="toggleRec('continuar')" disabled>⏭ CONTINUAR GRAVANDO</button>
       <button id="btnOverdub" class="btn-overdub" onclick="toggleRec('overdub')" disabled>➕ GRAVAR POR CIMA</button>
-      <button id="btnDesfazer" onclick="desfazerUltimaParte()" disabled>↩ DESFAZER PARTE</button>
-      <button class="btn-play" onclick="testarRoteiroGravado()">▶ TESTAR GRAVAÇÃO</button>
-      <button onclick="limparRoteiro()">LIMPAR</button>
+      <button id="btnNovaParte" class="btn-add" onclick="adicionarParteManual()">➕ COLAR / NOVA PARTE</button>
+      <button class="btn-play" onclick="testarAPartirDaParte(0)">▶ TESTAR TUDO</button>
+      <button onclick="limparRoteiro()">LIMPAR TUDO</button>
       <label style="font-size:12px; color:#CCC; cursor:pointer;">
         <input type="checkbox" id="chkReplayOverdub" checked> Reproduzir ao sobrepor
       </label>
     </div>
-    <div id="recInfo" class="rec-info">⏱ Duração gravada: 0.0s | Partes: 0 | Passos: 0</div>
-    <br>
-    <textarea id="codeOut" class="rec-box" readonly></textarea>
+    <div id="recInfo" class="rec-info">⏱ Duração total: 0.0s | Partes: 0 | Passos: 0 | 💾 Auto-save ativo</div>
+
+    <table class="tabela-partes">
+      <thead>
+        <tr>
+          <th>Partes (edite o código ou cole uma parte salva)</th>
+        </tr>
+      </thead>
+      <tbody id="corpoTabelaPartes">
+        <tr><td class="vazio-partes">Nenhuma parte gravada. Clique em "GRAVAR DO ZERO" ou "COLAR / NOVA PARTE".</td></tr>
+      </tbody>
+    </table>
+
+    <div style="margin-top:10px; font-size:11px; color:#AAA; display:flex; justify-content:space-between; align-items:center;">
+      <span>CÓDIGO COMPLETO UNIFICADO (pronto para colar em BaseCenas::atualizarCenas):</span>
+      <button class="btn-sm" onclick="copiarCodigoCompleto()">📋 COPIAR TUDO</button>
+    </div>
+    <textarea id="codeOut" class="rec-box" style="margin-top:4px;" readonly></textarea>
   </div>
 
   <script>
-    const ws = new WebSocket(`ws://${window.location.hostname}/ws`);
-    // Fatores calibrados em config.h para converter pulsos de encoder em milímetros e graus de ombro.
+    let ws = null;
+    let timerReconexaoWs = null;
+    const kStoragePartesKey = "chapeleiro_v2_partes_v1";
     const kTicksPorMm = 1.65;
     const kTicksPorGrauOmbro = 26.49;
+    const kDegrausCotovelo = [0, 60, 120];
 
     let ticks = [0, 0, 0, 0];
     let ticksOmbroEsq = 0;
@@ -212,21 +258,21 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     let gyroAtual = 0;
     let fodAtivo = true;
 
-    let gravando = false, inicioRec = 0, m1Start = 0, m2Start = 0, gyroStart = 0, cmdAtivo = "";
+    // Estado da gravação da base e de cada ombro de forma independente (permite mover ambos juntos no overdub).
+    let gravando = false, inicioRec = 0, m1Start = 0, m2Start = 0, m3Start = 0, m4Start = 0, gyroStart = 0, cmdAtivo = "";
     let movX = 0, movY = 0, movRot = 0, movPicoMag = 0;
-    let bracoAtivo = "", ticksBracoStart = 0;
+    const estadoGravOmbro = {
+      e: { ativo: false, ticksStart: 0, inicioTempo: 0 },
+      d: { ativo: false, ticksStart: 0, inicioTempo: 0 }
+    };
 
-    // Identifica cada segmento contínuo para substituir giros manuais em malha aberta por comandos absolutos no replay.
     let contadorSegmentos = 0;
     let segAtualId = 0;
     let segInicioTempo = 0;
 
-    // Rastreia partes sequenciais e camadas sobrepostas para permitir gravar em etapas e desfazer a última parte.
+    let partesGravadas = [];
+    let indiceParteAtiva = -1;
     let duracaoTotalGravada = 0;
-    let parteAtualId = 0;
-    let historicoPartes = [];
-    let passosGravados = [];
-    let eventosGravados = [];
     let timersReplay = [];
 
     let medindo = false;
@@ -235,86 +281,233 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     const teclasAtivas = {};
     const botoesAtivos = {};
     let cmdManualAtual = "stop";
-    let intervaloBraco = null;
-    let comandoBracoAtivo = "";
+    const intervaloOmbro = { e: null, d: null };
+    const comandoOmbroAtivo = { e: "", d: "" };
 
-    // Estado do controle Logitech FTC (Gamepad API).
+    // Modo do controle Logitech FTC: "base" ou "bracos".
+    let modoControleGamepad = "base";
     let gpNomeAtivo = "";
+    let gpUltimoBotaoInfo = "";
     let gpX = 0, gpY = 0, gpRot = 0;
-    let gpDpadEsqAnterior = false;
-    let gpDpadDirAnterior = false;
-    let gpBtnAAnterior = false, gpBtnBAnterior = false, gpBtnXAnterior = false, gpBtnYAnterior = false;
-    let gpLbAnterior = false, gpRbAnterior = false;
-    let gpModoGiroBumper = null; // "RB" (horário) ou "LB" (anti-horário) enquanto o gatilho estiver segurado.
-    let gpBufferAngulo = "";
+    let gpBtnAnterior = {};
     let gpUltimoEnvioMs = 0;
     let gpUltimoX = 0, gpUltimoY = 0, gpUltimoRot = 0;
+    let gpOmbroEsqDir = "";
+    let gpOmbroDirDir = "";
 
-    ws.onopen = () => {
-      aplicarForcaBase(document.getElementById("forcaBase").value);
-      aplicarRampa();
-      aplicarForcaBraco(document.getElementById("forcaBraco").value);
-      sendCmd(`fod:${fodAtivo ? 1 : 0}`);
-    };
+    // Estado para RB / LB segurado + digitação dos graus no teclado do notebook (no Modo Base).
+    let modoGiroDigitado = null;
+    let bufferGrausDigitados = "";
+    let giroDigitadoCancelado = false;
 
-    ws.onmessage = (e) => {
-      if (!e.data.startsWith("DAT:")) return;
-      const d = e.data.substring(4).split(",");
-      ticks = [parseInt(d[0]) || 0, parseInt(d[1]) || 0, parseInt(d[2]) || 0, parseInt(d[3]) || 0];
-      ticksOmbroEsq = parseInt(d[5]) || 0;
-      ticksOmbroDir = parseInt(d[6]) || 0;
-      gyroAtual = parseFloat(d[7]) || 0;
-
-      document.getElementById("enc1").innerText = ticks[0];
-      document.getElementById("enc2").innerText = ticks[1];
-      document.getElementById("enc3").innerText = ticks[2];
-      document.getElementById("enc4").innerText = ticks[3];
-      document.getElementById("encBE").innerText = ticksOmbroEsq;
-      document.getElementById("encBD").innerText = ticksOmbroDir;
-      document.getElementById("gyroDisp").innerText = gyroAtual.toFixed(1);
-
-      if (medindo) {
-        const distMm = calcularDistanciaMediaMm();
-        document.getElementById("medidaAtualDisp").innerText = distMm.toFixed(1) + " mm";
+    function atualizarStatusWs(conectado) {
+      const el = document.getElementById("wsStatus");
+      if (!el) return;
+      if (conectado) {
+        el.innerText = "🟢 Wi-Fi / WS: Conectado ao Robô";
+        el.classList.remove("erro");
+        el.classList.add("conectado");
+      } else {
+        el.innerText = "🔴 Wi-Fi / WS: Desconectado (clique p/ reconectar)";
+        el.classList.remove("conectado");
+        el.classList.add("erro");
       }
-    };
-
-    function normalizarAngulo180(ang) {
-      let a = ang % 360.0;
-      if (a > 180.0) a -= 360.0;
-      if (a <= -180.0) a += 360.0;
-      // Normaliza -180° para +180° por convenção de leitura no código gerado.
-      if (Math.abs(a + 180.0) < 0.05) a = 180.0;
-      if (Math.abs(a) < 0.05) a = 0.0;
-      return a.toFixed(1);
     }
 
-    function aplicarZonaMorta(valor, zonaMorta = 0.10) {
+    function conectarWebSocket() {
+      if (ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)) return;
+      if (timerReconexaoWs) {
+        clearTimeout(timerReconexaoWs);
+        timerReconexaoWs = null;
+      }
+
+      ws = new WebSocket(`ws://${window.location.hostname}/ws`);
+
+      ws.onopen = () => {
+        atualizarStatusWs(true);
+        aplicarForcaBase(document.getElementById("forcaBase").value);
+        aplicarRampa();
+        aplicarForcaBraco(document.getElementById("forcaBraco").value);
+        wsSend(`fod:${fodAtivo ? 1 : 0}`);
+      };
+
+      ws.onclose = () => {
+        atualizarStatusWs(false);
+        timerReconexaoWs = setTimeout(conectarWebSocket, 2000);
+      };
+
+      ws.onerror = () => {
+        atualizarStatusWs(false);
+      };
+
+      ws.onmessage = (e) => {
+        if (!e.data.startsWith("DAT:")) return;
+        const d = e.data.substring(4).split(",");
+        ticks = [parseInt(d[0]) || 0, parseInt(d[1]) || 0, parseInt(d[2]) || 0, parseInt(d[3]) || 0];
+        ticksOmbroEsq = parseInt(d[5]) || 0;
+        ticksOmbroDir = parseInt(d[6]) || 0;
+        gyroAtual = parseFloat(d[7]) || 0;
+
+        document.getElementById("enc1").innerText = ticks[0];
+        document.getElementById("enc2").innerText = ticks[1];
+        document.getElementById("enc3").innerText = ticks[2];
+        document.getElementById("enc4").innerText = ticks[3];
+        document.getElementById("encBE").innerText = ticksOmbroEsq;
+        document.getElementById("encBD").innerText = ticksOmbroDir;
+        document.getElementById("gyroDisp").innerText = gyroAtual.toFixed(1);
+
+        if (medindo) {
+          const distMm = calcularDistanciaMediaMm();
+          document.getElementById("medidaAtualDisp").innerText = distMm.toFixed(1) + " mm";
+        }
+      };
+    }
+
+    function wsSend(msg) {
+      if (ws && ws.readyState === WebSocket.OPEN) {
+        ws.send(msg);
+        return true;
+      }
+      return false;
+    }
+
+    conectarWebSocket();
+
+    function enviarCodigoCha() {
+      const canal = Math.max(0, Math.min(255, parseInt(document.getElementById("canalTea").value) || 10));
+      document.getElementById("canalTea").value = canal;
+      sendCmd(`ble_tx:2565,${canal}`);
+    }
+
+    function alternarModoControleGamepad() {
+      // Interrompe movimentos pendentes antes de trocar o mapeamento dos analógicos.
+      if (modoGiroDigitado !== null) {
+        modoGiroDigitado = null;
+        bufferGrausDigitados = "";
+        giroDigitadoCancelado = false;
+        atualizarVisorGiroDigitado();
+      }
+      gpX = gpY = gpRot = 0;
+      sincronizarMovimentoManual();
+      if (gpOmbroEsqDir) { pararOmbro("e"); gpOmbroEsqDir = ""; }
+      if (gpOmbroDirDir) { pararOmbro("d"); gpOmbroDirDir = ""; }
+
+      modoControleGamepad = (modoControleGamepad === "base") ? "bracos" : "base";
+      const btn = document.getElementById("btnModoControle");
+      const leg = document.getElementById("gamepadLegenda");
+
+      if (modoControleGamepad === "base") {
+        btn.innerText = "🎮 CONTROLE: BASE (Tab p/ Braços)";
+        btn.className = "btn-modo-base";
+        leg.innerText = "BASE | Y:0° B:+90° A:180° X:-90° | D-Pad ◄►: Giro | Segure LB/RB + Teclado: ±X°";
+      } else {
+        btn.innerText = "🦾 CONTROLE: BRAÇOS (Tab p/ Base)";
+        btn.className = "btn-modo-bracos";
+        leg.innerText = "BRAÇOS | Analógico Esq ↕: Ombro Esq | Dir ↕: Ombro Dir | LB/LT: Cotov. Esq | RB/RT: Cotov. Dir (0-60-120°)";
+      }
+      gpUltimoBotaoInfo = `Modo ${modoControleGamepad.toUpperCase()}`;
+    }
+
+    function aplicarZonaMorta(valor, zonaMorta = 0.12) {
       if (Math.abs(valor) < zonaMorta) return 0;
-      // Reescalona o curso útil [zonaMorta..1.0] para [0.0..1.0] para manter controle fino em baixa velocidade.
       const sinal = Math.sign(valor);
       return sinal * ((Math.abs(valor) - zonaMorta) / (1.0 - zonaMorta));
     }
 
-    function atualizarStatusGamepad(gp) {
-      const el = document.getElementById("gamepadStatus");
-      if (!el) return;
+    function isBtnPressed(gp, idx) {
+      const b = gp.buttons && gp.buttons[idx];
+      return !!(b && (b.pressed || b.value > 0.35));
+    }
 
-      if (gpModoGiroBumper) {
-        const sent = (gpModoGiroBumper === "RB") ? "HORÁRIO ↷" : "ANTI-HORÁRIO ↶";
-        const valTexto = gpBufferAngulo.length > 0 ? gpBufferAngulo : "_";
-        el.innerText = `🎯 ${gpModoGiroBumper} (${sent}): digite graus -> ${valTexto}°`;
-        el.classList.remove("conectado");
-        el.classList.add("digitando");
+    function definirCotovelo(lado, graus) {
+      const g = Math.max(0, Math.min(120, Math.round(parseFloat(graus) || 0)));
+      const inputId = (lado === "e") ? "srvE" : "srvD";
+      document.getElementById(inputId).value = g;
+      sendCmd(`srv_pos_${lado}:${g}`);
+    }
+
+    function moverDegrauCotovelo(lado, deltaPasso) {
+      const inputId = (lado === "e") ? "srvE" : "srvD";
+      const atual = parseInt(document.getElementById(inputId).value) || 0;
+      // Encontra o degrau [0, 60, 120] mais próximo da posição atual e avança/recua 1 degrau.
+      let idx = 0;
+      let menorDiff = 999;
+      kDegrausCotovelo.forEach((val, i) => {
+        const diff = Math.abs(atual - val);
+        if (diff < menorDiff) { menorDiff = diff; idx = i; }
+      });
+      const novoIdx = Math.max(0, Math.min(kDegrausCotovelo.length - 1, idx + deltaPasso));
+      definirCotovelo(lado, kDegrausCotovelo[novoIdx]);
+    }
+
+    function atualizarVisorGiroDigitado() {
+      const visor = document.getElementById("visorGiroDigitado");
+      const statusEl = document.getElementById("gamepadStatus");
+      if (!modoGiroDigitado) {
+        if (visor) visor.style.display = "none";
+        if (statusEl) statusEl.classList.remove("digitando");
         return;
       }
 
-      el.classList.remove("digitando");
-      if (gp || gpNomeAtivo) {
-        if (gp) gpNomeAtivo = gp.id.substring(0, 28);
-        el.innerText = `🎮 Controle: ${gpNomeAtivo}`;
+      const sinal = (modoGiroDigitado === "rb") ? "+" : "-";
+      const btnNome = (modoGiroDigitado === "rb") ? "RB (Horário)" : "LB (Anti-horário)";
+      const textoVal = giroDigitadoCancelado
+        ? "CANCELADO (solte o botão)"
+        : (bufferGrausDigitados ? `${sinal}${bufferGrausDigitados}° (solte p/ girar)` : "digite os graus no teclado...");
+
+      if (visor) {
+        visor.style.display = "block";
+        visor.innerText = `⌨️ ${btnNome}: ${textoVal}`;
+      }
+      if (statusEl) {
+        statusEl.classList.add("digitando");
+        statusEl.innerText = `⌨️ ${btnNome}: ${textoVal}`;
+      }
+    }
+
+    function finalizarGiroDigitado() {
+      const modo = modoGiroDigitado;
+      const raw = bufferGrausDigitados;
+      const cancelado = giroDigitadoCancelado;
+
+      modoGiroDigitado = null;
+      bufferGrausDigitados = "";
+      giroDigitadoCancelado = false;
+      atualizarVisorGiroDigitado();
+
+      if (!modo || cancelado || !raw) {
+        gpUltimoBotaoInfo = `${modo === "rb" ? "RB" : "LB"}: Cancelado`;
+        return;
+      }
+
+      const graus = parseFloat(raw);
+      if (isNaN(graus) || graus <= 0) {
+        gpUltimoBotaoInfo = `${modo === "rb" ? "RB" : "LB"}: Valor inválido`;
+        return;
+      }
+
+      const grausFinal = Math.min(360, graus);
+      const direcao = (modo === "rb") ? 1 : -1;
+      document.getElementById("anguloGiro").value = grausFinal;
+      executarGiroSeta(direcao);
+      gpUltimoBotaoInfo = `${modo === "rb" ? "RB" : "LB"}: ${direcao > 0 ? "+" : "-"}${grausFinal}°`;
+    }
+
+    function atualizarStatusGamepad(gp, infoExtra = "") {
+      const el = document.getElementById("gamepadStatus");
+      if (!el) return;
+      if (modoGiroDigitado) {
+        atualizarVisorGiroDigitado();
+        return;
+      }
+      if (gp) {
+        gpNomeAtivo = gp.id.substring(0, 22);
+        if (infoExtra) gpUltimoBotaoInfo = infoExtra;
+        el.innerText = `🎮 [${modoControleGamepad.toUpperCase()}] ${gpNomeAtivo}${gpUltimoBotaoInfo ? " | " + gpUltimoBotaoInfo : ""}`;
         el.classList.add("conectado");
       } else {
+        gpNomeAtivo = "";
+        gpUltimoBotaoInfo = "";
         el.innerText = "🎮 Controle: Desconectado (aperte um botão)";
         el.classList.remove("conectado");
       }
@@ -322,14 +515,15 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
     window.addEventListener("gamepadconnected", (e) => atualizarStatusGamepad(e.gamepad));
     window.addEventListener("gamepaddisconnected", () => {
-      gpNomeAtivo = "";
-      gpX = gpY = gpRot = 0;
-      gpDpadEsqAnterior = gpDpadDirAnterior = false;
-      gpBtnAAnterior = gpBtnBAnterior = gpBtnXAnterior = gpBtnYAnterior = false;
-      gpLbAnterior = gpRbAnterior = false;
-      gpModoGiroBumper = null;
-      gpBufferAngulo = "";
+      modoGiroDigitado = null;
+      bufferGrausDigitados = "";
+      giroDigitadoCancelado = false;
+      atualizarVisorGiroDigitado();
       atualizarStatusGamepad(null);
+      gpX = gpY = gpRot = 0;
+      if (gpOmbroEsqDir) { pararOmbro("e"); gpOmbroEsqDir = ""; }
+      if (gpOmbroDirDir) { pararOmbro("d"); gpOmbroDirDir = ""; }
+      gpBtnAnterior = {};
       sincronizarMovimentoManual();
     });
 
@@ -343,171 +537,203 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       if (gp) {
         if (!gpNomeAtivo) atualizarStatusGamepad(gp);
 
-        // Analógico esquerdo controla translação (eixo Y invertido no padrão Gamepad API: cima = -1).
-        let lx = aplicarZonaMorta(gp.axes[0] || 0);
-        let ly = aplicarZonaMorta(-(gp.axes[1] || 0));
-        const magL = Math.hypot(lx, ly);
-        if (magL > 1.0) {
-          lx /= magL;
-          ly /= magL;
-        }
+        const btnA = isBtnPressed(gp, 0);
+        const btnB = isBtnPressed(gp, 1);
+        const btnX = isBtnPressed(gp, 2);
+        const btnY = isBtnPressed(gp, 3);
+        const btnLB = isBtnPressed(gp, 4);
+        const btnRB = isBtnPressed(gp, 5);
+        const btnLT = isBtnPressed(gp, 6);
+        const btnRT = isBtnPressed(gp, 7);
 
-        // Analógico direito (eixo horizontal) controla rotação no próprio eixo simultaneamente.
-        const rx = aplicarZonaMorta(gp.axes[2] || 0);
-
-        gpX = lx;
-        gpY = ly;
-        gpRot = rx;
-
-        // Botões A (0), B (1), X (2), Y (3): alinhamento absoluto rápido pelo giroscópio.
-        const btnA = !!(gp.buttons[0] && gp.buttons[0].pressed);
-        const btnB = !!(gp.buttons[1] && gp.buttons[1].pressed);
-        const btnX = !!(gp.buttons[2] && gp.buttons[2].pressed);
-        const btnY = !!(gp.buttons[3] && gp.buttons[3].pressed);
-
-        if (btnY && !gpBtnYAnterior) executarGiroAbsoluto(0);
-        if (btnB && !gpBtnBAnterior) executarGiroAbsoluto(90);
-        if (btnA && !gpBtnAAnterior) executarGiroAbsoluto(180);
-        if (btnX && !gpBtnXAnterior) executarGiroAbsoluto(-90);
-
-        gpBtnAAnterior = btnA;
-        gpBtnBAnterior = btnB;
-        gpBtnXAnterior = btnX;
-        gpBtnYAnterior = btnY;
-
-        // Botões LB (4) e RB (5): segure, digite o ângulo no teclado do notebook e solte para girar.
-        const btnLb = !!(gp.buttons[4] && gp.buttons[4].pressed);
-        const btnRb = !!(gp.buttons[5] && gp.buttons[5].pressed);
-
-        if (btnRb && !gpRbAnterior && !gpModoGiroBumper) {
-          gpModoGiroBumper = "RB";
-          gpBufferAngulo = "";
-          atualizarStatusGamepad(gp);
-        } else if (!btnRb && gpRbAnterior && gpModoGiroBumper === "RB") {
-          finalizarGiroBumper(1, gp);
-        }
-
-        if (btnLb && !gpLbAnterior && !gpModoGiroBumper) {
-          gpModoGiroBumper = "LB";
-          gpBufferAngulo = "";
-          atualizarStatusGamepad(gp);
-        } else if (!btnLb && gpLbAnterior && gpModoGiroBumper === "LB") {
-          finalizarGiroBumper(-1, gp);
-        }
-
-        gpLbAnterior = btnLb;
-        gpRbAnterior = btnRb;
-
-        // D-Pad esquerda (14) e direita (15): giro relativo acumulado sobre o alvo absoluto atual.
-        let dpadEsq = !!(gp.buttons[14] && gp.buttons[14].pressed);
-        let dpadDir = !!(gp.buttons[15] && gp.buttons[15].pressed);
-
-        // Fallback para POV hat (axes[9]) caso a chave traseira do Logitech F310 esteja em modo DirectInput (D).
+        let dpadEsq = isBtnPressed(gp, 14);
+        let dpadDir = isBtnPressed(gp, 15);
         if (!dpadEsq && !dpadDir && gp.axes.length > 9) {
           const pov = gp.axes[9];
           if (pov >= 0.65 && pov <= 0.80) dpadEsq = true;
           if (pov >= -0.50 && pov <= -0.35) dpadDir = true;
         }
 
-        if (dpadEsq && !gpDpadEsqAnterior) executarGiroSeta(-1);
-        if (dpadDir && !gpDpadDirAnterior) executarGiroSeta(1);
-        gpDpadEsqAnterior = dpadEsq;
-        gpDpadDirAnterior = dpadDir;
+        if (modoControleGamepad === "base") {
+          // --- MODO BASE ---
+          let lx = aplicarZonaMorta(gp.axes[0] || 0);
+          let ly = aplicarZonaMorta(-(gp.axes[1] || 0));
+          const magL = Math.hypot(lx, ly);
+          if (magL > 1.0) { lx /= magL; ly /= magL; }
+          const rx = aplicarZonaMorta(gp.axes[2] || 0);
+          gpX = lx;
+          gpY = ly;
+          gpRot = rx;
 
-        const agora = performance.now();
-        const mudou = Math.abs(gpX - gpUltimoX) >= 0.03 ||
-                      Math.abs(gpY - gpUltimoY) >= 0.03 ||
-                      Math.abs(gpRot - gpUltimoRot) >= 0.03 ||
-                      ((gpX === 0 && gpY === 0 && gpRot === 0) && (gpUltimoX !== 0 || gpUltimoY !== 0 || gpUltimoRot !== 0));
+          if (btnRB && !gpBtnAnterior.rb && modoGiroDigitado === null) {
+            modoGiroDigitado = "rb";
+            bufferGrausDigitados = "";
+            giroDigitadoCancelado = false;
+            atualizarVisorGiroDigitado();
+          } else if (!btnRB && gpBtnAnterior.rb && modoGiroDigitado === "rb") {
+            finalizarGiroDigitado();
+            atualizarStatusGamepad(gp);
+          }
 
-        // Limita envio contínuo a 40 Hz (25 ms) para não enfileirar pacotes na pilha WebSocket da ESP32.
-        if (mudou && (agora - gpUltimoEnvioMs >= 25)) {
-          gpUltimoX = gpX;
-          gpUltimoY = gpY;
-          gpUltimoRot = gpRot;
-          gpUltimoEnvioMs = agora;
-          sincronizarMovimentoManual();
+          if (btnLB && !gpBtnAnterior.lb && modoGiroDigitado === null) {
+            modoGiroDigitado = "lb";
+            bufferGrausDigitados = "";
+            giroDigitadoCancelado = false;
+            atualizarVisorGiroDigitado();
+          } else if (!btnLB && gpBtnAnterior.lb && modoGiroDigitado === "lb") {
+            finalizarGiroDigitado();
+            atualizarStatusGamepad(gp);
+          }
+
+          if (btnY && !gpBtnAnterior.y) { executarGiroAbsoluto(0); atualizarStatusGamepad(gp, "Y: 0°"); }
+          if (btnB && !gpBtnAnterior.b) { executarGiroAbsoluto(90); atualizarStatusGamepad(gp, "B: +90°"); }
+          if (btnA && !gpBtnAnterior.a) { executarGiroAbsoluto(180); atualizarStatusGamepad(gp, "A: 180°"); }
+          if (btnX && !gpBtnAnterior.x) { executarGiroAbsoluto(-90); atualizarStatusGamepad(gp, "X: -90°"); }
+
+          if (dpadEsq && !gpBtnAnterior.dEsq) { executarGiroSeta(-1); atualizarStatusGamepad(gp, "D-Pad ◄"); }
+          if (dpadDir && !gpBtnAnterior.dDir) { executarGiroSeta(1); atualizarStatusGamepad(gp, "D-Pad ►"); }
+
+          const agora = performance.now();
+          const mudou = Math.abs(gpX - gpUltimoX) >= 0.03 ||
+                        Math.abs(gpY - gpUltimoY) >= 0.03 ||
+                        Math.abs(gpRot - gpUltimoRot) >= 0.03 ||
+                        ((gpX === 0 && gpY === 0 && gpRot === 0) && (gpUltimoX !== 0 || gpUltimoY !== 0 || gpUltimoRot !== 0));
+
+          if (mudou && (agora - gpUltimoEnvioMs >= 25)) {
+            gpUltimoX = gpX;
+            gpUltimoY = gpY;
+            gpUltimoRot = gpRot;
+            gpUltimoEnvioMs = agora;
+            sincronizarMovimentoManual();
+          }
+        } else {
+          // --- MODO BRAÇOS ---
+          // Analógico Esquerdo Y (axes[1]) controla Ombro Esquerdo; Analógico Direito Y (axes[3]) controla Ombro Direito.
+          const lyBraco = aplicarZonaMorta(-(gp.axes[1] || 0), 0.22);
+          const ryBraco = aplicarZonaMorta(-(gp.axes[3] || 0), 0.22);
+
+          const novaDirE = (lyBraco > 0) ? "up" : (lyBraco < 0 ? "dwn" : "");
+          if (novaDirE !== gpOmbroEsqDir) {
+            gpOmbroEsqDir = novaDirE;
+            if (novaDirE) {
+              iniciarOmbro("e", novaDirE);
+              atualizarStatusGamepad(gp, `Ombro Esq ${novaDirE === "up" ? "▲" : "▼"}`);
+            } else {
+              pararOmbro("e");
+            }
+          }
+
+          const novaDirD = (ryBraco > 0) ? "up" : (ryBraco < 0 ? "dwn" : "");
+          if (novaDirD !== gpOmbroDirDir) {
+            gpOmbroDirDir = novaDirD;
+            if (novaDirD) {
+              iniciarOmbro("d", novaDirD);
+              atualizarStatusGamepad(gp, `Ombro Dir ${novaDirD === "up" ? "▲" : "▼"}`);
+            } else {
+              pararOmbro("d");
+            }
+          }
+
+          // LB abaixa e LT sobe o Cotovelo Esquerdo (0° - 60° - 120°).
+          if (btnLB && !gpBtnAnterior.lb) {
+            moverDegrauCotovelo("e", -1);
+            atualizarStatusGamepad(gp, `LB: Cotov. Esq ${document.getElementById("srvE").value}°`);
+          }
+          if (btnLT && !gpBtnAnterior.lt) {
+            moverDegrauCotovelo("e", 1);
+            atualizarStatusGamepad(gp, `LT: Cotov. Esq ${document.getElementById("srvE").value}°`);
+          }
+
+          // RB abaixa e RT sobe o Cotovelo Direito (0° - 60° - 120°).
+          if (btnRB && !gpBtnAnterior.rb) {
+            moverDegrauCotovelo("d", -1);
+            atualizarStatusGamepad(gp, `RB: Cotov. Dir ${document.getElementById("srvD").value}°`);
+          }
+          if (btnRT && !gpBtnAnterior.rt) {
+            moverDegrauCotovelo("d", 1);
+            atualizarStatusGamepad(gp, `RT: Cotov. Dir ${document.getElementById("srvD").value}°`);
+          }
         }
+
+        gpBtnAnterior = {
+          a: btnA, b: btnB, x: btnX, y: btnY,
+          lb: btnLB, rb: btnRB, lt: btnLT, rt: btnRT,
+          dEsq: dpadEsq, dDir: dpadDir
+        };
       }
 
       requestAnimationFrame(lerGamepadLoop);
     }
     requestAnimationFrame(lerGamepadLoop);
 
-    function finalizarGiroBumper(direcao, gp) {
-      const graus = parseFloat(gpBufferAngulo);
-      gpModoGiroBumper = null;
-      gpBufferAngulo = "";
-      atualizarStatusGamepad(gp);
+    function fecharSegmentoOmbro(lado, tempo) {
+      const est = estadoGravOmbro[lado];
+      if (!est || !est.ativo || indiceParteAtiva < 0) return;
 
-      if (!isNaN(graus) && graus > 0) {
-        document.getElementById("anguloGiro").value = graus;
-        executarGiroSeta(direcao);
+      const ticksFim = (lado === "e") ? ticksOmbroEsq : ticksOmbroDir;
+      const graus = Math.max(0.0, Math.min(90.0, ticksFim / kTicksPorGrauOmbro)).toFixed(1);
+      const velBraco = parseInt(document.getElementById("forcaBraco").value) || 130;
+      const parte = partesGravadas[indiceParteAtiva];
+
+      if (lado === "e") {
+        registrarPassoNaParte(parte, est.inicioTempo, `funcoes_.moverOmbroEsq(${graus}f, ${velBraco});`, tempo);
+        parte.eventos.push({ tempo: est.inicioTempo, tipo: "raw", cmd: `OMB_POS_E:${graus},${velBraco}` });
+      } else {
+        registrarPassoNaParte(parte, est.inicioTempo, `funcoes_.moverOmbroDir(${graus}f, ${velBraco});`, tempo);
+        parte.eventos.push({ tempo: est.inicioTempo, tipo: "raw", cmd: `OMB_POS_D:${graus},${velBraco}` });
       }
+      est.ativo = false;
     }
 
-    function fecharSegmentoBraco(tempo) {
-      if (!bracoAtivo) return;
-      const ticksFim = (bracoAtivo === "be") ? ticksOmbroEsq : ticksOmbroDir;
-      // Ignora microvariações menores que 5 ticks (~0,2°) para evitar passos falsos por ruído mecânico.
-      if (Math.abs(ticksFim - ticksBracoStart) > 5) {
-        // Limita ao intervalo físico [0°, 90°] de config.h para evitar colisão estrutural na reprodução.
-        const graus = Math.max(0.0, Math.min(90.0, ticksFim / kTicksPorGrauOmbro)).toFixed(1);
-        const velBraco = parseInt(document.getElementById("forcaBraco").value) || 130;
+    function iniciarOmbro(lado, dir) {
+      pararOmbro(lado, false);
+      const cmd = `b${lado}_${dir}`;
+      comandoOmbroAtivo[lado] = cmd;
 
-        if (bracoAtivo === "be") {
-          registrarPasso(tempo, `funcoes_.moverOmbroEsq(${graus}f, ${velBraco});`);
-          eventosGravados.push({ tempo, tipo: "raw", cmd: `OMB_POS_E:${graus},${velBraco}`, parte: parteAtualId });
-        } else {
-          registrarPasso(tempo, `funcoes_.moverOmbroDir(${graus}f, ${velBraco});`);
-          eventosGravados.push({ tempo, tipo: "raw", cmd: `OMB_POS_D:${graus},${velBraco}`, parte: parteAtualId });
-        }
-      }
-      bracoAtivo = "";
-    }
-
-    function iniciarBraco(cmd) {
-      pararBraco();
-      comandoBracoAtivo = cmd;
-      if (gravando) {
-        bracoAtivo = cmd.startsWith("be_") ? "be" : "bd";
-        ticksBracoStart = (bracoAtivo === "be") ? ticksOmbroEsq : ticksOmbroDir;
+      if (gravando && indiceParteAtiva >= 0) {
+        const est = estadoGravOmbro[lado];
+        est.ativo = true;
+        est.ticksStart = (lado === "e") ? ticksOmbroEsq : ticksOmbroDir;
+        est.inicioTempo = Date.now() - inicioRec;
       }
       sendCmd(cmd);
-      // Reenvia o comando a cada 150 ms porque o firmware dos braços possui watchdog que corta o motor se o sinal parar.
-      intervaloBraco = setInterval(() => sendCmd(cmd), 150);
+      intervaloOmbro[lado] = setInterval(() => sendCmd(cmd), 150);
     }
 
-    function pararBraco() {
-      comandoBracoAtivo = "";
-      if (intervaloBraco) {
-        clearInterval(intervaloBraco);
-        intervaloBraco = null;
+    function pararOmbro(lado, enviarParada = true) {
+      comandoOmbroAtivo[lado] = "";
+      if (intervaloOmbro[lado]) {
+        clearInterval(intervaloOmbro[lado]);
+        intervaloOmbro[lado] = null;
       }
-      if (gravando && bracoAtivo !== "") {
-        fecharSegmentoBraco(Date.now() - inicioRec);
+      if (gravando && estadoGravOmbro[lado].ativo) {
+        fecharSegmentoOmbro(lado, Date.now() - inicioRec);
       }
-      sendCmd("stop");
+      if (enviarParada) {
+        sendCmd(lado === "e" ? "BE_STP" : "BD_STP");
+      }
     }
 
     window.addEventListener("mouseup", () => {
-      if (intervaloBraco) pararBraco();
+      if (intervaloOmbro.e) pararOmbro("e");
+      if (intervaloOmbro.d) pararOmbro("d");
       if (Object.keys(botoesAtivos).length > 0) {
         for (const k in botoesAtivos) delete botoesAtivos[k];
         sincronizarMovimentoManual();
       }
     });
 
-    window.addEventListener("touchend", () => { if (intervaloBraco) pararBraco(); });
+    window.addEventListener("touchend", () => {
+      if (intervaloOmbro.e) pararOmbro("e");
+      if (intervaloOmbro.d) pararOmbro("d");
+    });
 
-    // Zera teclas e botões presos caso a aba perca o foco para evitar que o robô continue andando sozinho.
     window.addEventListener("blur", () => {
       for (const k in teclasAtivas) delete teclasAtivas[k];
       for (const k in botoesAtivos) delete botoesAtivos[k];
+      if (intervaloOmbro.e) pararOmbro("e");
+      if (intervaloOmbro.d) pararOmbro("d");
       gpX = gpY = gpRot = 0;
-      gpModoGiroBumper = null;
-      gpBufferAngulo = "";
-      atualizarStatusGamepad(null);
       sincronizarMovimentoManual();
     });
 
@@ -565,17 +791,14 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     function aplicarForcaBase(valor) {
       const v = Math.max(0, Math.min(255, parseInt(valor) || 0));
       document.getElementById("forcaBase").value = v;
-      if (ws.readyState === WebSocket.OPEN) ws.send(`vel:${v}`);
+      wsSend(`vel:${v}`);
     }
 
     function aplicarRampa() {
-      // Envia via oninput sem reescrever o campo para permitir apagar e digitar novos números sem travar o cursor.
       const acel = Math.max(1, Math.min(255, parseInt(document.getElementById("passoAcel").value) || 8));
       const freio = Math.max(1, Math.min(255, parseInt(document.getElementById("passoFreio").value) || 15));
-      if (ws.readyState === WebSocket.OPEN) {
-        ws.send(`acel:${acel}`);
-        ws.send(`freio:${freio}`);
-      }
+      wsSend(`acel:${acel}`);
+      wsSend(`freio:${freio}`);
     }
 
     function alterarForcaBase(delta) {
@@ -586,7 +809,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     function aplicarForcaBraco(valor) {
       const v = Math.max(50, Math.min(255, parseInt(valor) || 130));
       document.getElementById("forcaBraco").value = v;
-      if (ws.readyState === WebSocket.OPEN) ws.send(`vel_braco:${v}`);
+      wsSend(`vel_braco:${v}`);
     }
 
     function selecionarPreset(indice) {
@@ -617,7 +840,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         : (parseFloat(document.getElementById("anguloAbsoluto").value) || 0);
       document.getElementById("anguloAbsoluto").value = alvo;
       const vel = parseInt(document.getElementById("forcaBase").value) || 120;
-      // Envia turn_to para orientar o chassi na direção fixa equivalente (módulo 360°) pelo menor arco.
       sendCmd(`turn_to:${alvo},${vel}`);
     }
 
@@ -626,31 +848,208 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       timersReplay = [];
     }
 
+    function salvarPartesNoNavegador() {
+      try {
+        localStorage.setItem(kStoragePartesKey, JSON.stringify(partesGravadas));
+      } catch (e) {}
+    }
+
+    function carregarPartesDoNavegador() {
+      try {
+        const bruto = localStorage.getItem(kStoragePartesKey);
+        if (!bruto) return;
+        const lidas = JSON.parse(bruto);
+        if (Array.isArray(lidas)) {
+          partesGravadas = lidas;
+          recalcularLinhaDoTempo();
+          renderizarTabelaPartes();
+          atualizarTextoRoteiroCompleto();
+          atualizarBotoesGravacao();
+        }
+      } catch (e) {}
+    }
+
+    function formatarCodigoDaParte(passos, offsetIndice = 0) {
+      if (!passos || passos.length === 0) return "";
+      return passos.map((p, idx) =>
+        `if (passoAtual_ == ${offsetIndice + idx} && decorridoMs >= ${p.tempo}) {\n    ${p.acao}\n    passoAtual_++;\n}`
+      ).join("\n");
+    }
+
+    function parsearCodigoCpp(texto, tempoMinimoSugerido = 0) {
+      const regexBloco = /if\s*\(\s*passoAtual_\s*==\s*\d+\s*&&\s*decorridoMs\s*>=\s*(\d+)\s*\)\s*\{([\s\S]*?)\}/g;
+      const encontrados = [];
+      let match;
+
+      while ((match = regexBloco.exec(texto)) !== null) {
+        const tempo = parseInt(match[1], 10) || 0;
+        const corpo = match[2];
+        const linhas = corpo.split("\n");
+        for (let l of linhas) {
+          l = l.replace(/\/\/.*$/, "").trim();
+          if (!l || l.startsWith("passoAtual_")) continue;
+          if (l.startsWith("funcoes_.")) {
+            encontrados.push({ tempo, acao: l });
+          }
+        }
+      }
+
+      if (encontrados.length === 0) {
+        const linhasSoltas = texto.split("\n");
+        let tCursor = tempoMinimoSugerido;
+        for (let l of linhasSoltas) {
+          l = l.replace(/\/\/.*$/, "").trim();
+          if (l.startsWith("funcoes_.")) {
+            encontrados.push({ tempo: tCursor, acao: l });
+            tCursor += 1000;
+          }
+        }
+      }
+
+      encontrados.sort((a, b) => a.tempo - b.tempo);
+      return encontrados;
+    }
+
+    function recalcularLinhaDoTempo() {
+      let maxTempo = 0;
+      partesGravadas.forEach((p) => {
+        if (p.passos && p.passos.length > 0) {
+          const ultimo = p.passos[p.passos.length - 1].tempo;
+          p.inicioMs = p.passos[0].tempo;
+          p.fimMs = Math.max(p.fimMs || 0, ultimo);
+        } else {
+          p.inicioMs = p.inicioMs || 0;
+          p.fimMs = p.fimMs || 0;
+        }
+        if (p.fimMs > maxTempo) maxTempo = p.fimMs;
+      });
+      duracaoTotalGravada = maxTempo;
+    }
+
     function atualizarBotoesGravacao() {
       const btnRec = document.getElementById("btnRec");
       const btnContinuar = document.getElementById("btnContinuar");
       const btnOverdub = document.getElementById("btnOverdub");
-      const btnDesfazer = document.getElementById("btnDesfazer");
-      const temConteudo = passosGravados.length > 0 || duracaoTotalGravada > 0;
+      const totalPassos = partesGravadas.reduce((acc, p) => acc + (p.passos ? p.passos.length : 0), 0);
+      const temConteudo = partesGravadas.length > 0 && (totalPassos > 0 || duracaoTotalGravada > 0);
 
       if (gravando) {
         btnRec.innerText = "⏹ PARAR GRAVAÇÃO";
         btnRec.classList.add("ativo");
         btnContinuar.disabled = true;
         btnOverdub.disabled = true;
-        btnDesfazer.disabled = true;
       } else {
         btnRec.innerText = "🔴 GRAVAR DO ZERO";
         btnRec.classList.remove("ativo");
         btnContinuar.disabled = !temConteudo;
         btnOverdub.disabled = !temConteudo;
-        btnDesfazer.disabled = historicoPartes.length === 0;
       }
 
       const info = document.getElementById("recInfo");
       if (info) {
-        info.innerText = `⏱ Duração gravada: ${(duracaoTotalGravada / 1000).toFixed(1)}s | Partes: ${historicoPartes.length} | Passos: ${passosGravados.length}`;
+        info.innerText = `⏱ Duração total: ${(duracaoTotalGravada / 1000).toFixed(1)}s | Partes: ${partesGravadas.length} | Passos: ${totalPassos} | 💾 Auto-save ativo`;
       }
+    }
+
+    function renderizarTabelaPartes() {
+      const tbody = document.getElementById("corpoTabelaPartes");
+      if (!tbody) return;
+
+      if (partesGravadas.length === 0) {
+        tbody.innerHTML = `<tr><td class="vazio-partes">Nenhuma parte gravada. Clique em "GRAVAR DO ZERO" ou "COLAR / NOVA PARTE".</td></tr>`;
+        return;
+      }
+
+      let offsetPasso = 0;
+      tbody.innerHTML = partesGravadas.map((parte, idx) => {
+        const qtdPassos = parte.passos ? parte.passos.length : 0;
+        const iniSeg = ((parte.inicioMs || 0) / 1000).toFixed(1);
+        const fimSeg = ((parte.fimMs || 0) / 1000).toFixed(1);
+        const textoExibir = (parte.textoManual !== undefined && parte.textoManual !== null)
+          ? parte.textoManual
+          : formatarCodigoDaParte(parte.passos, offsetPasso);
+        offsetPasso += qtdPassos;
+
+        return `
+          <tr>
+            <td>
+              <div class="parte-topo">
+                <div>
+                  <span class="parte-titulo">Parte ${idx + 1}</span>
+                  <span class="parte-meta">${iniSeg}s → ${fimSeg}s | ${qtdPassos} passo(s)</span>
+                </div>
+                <div class="parte-acoes">
+                  <button class="btn-play btn-sm" onclick="testarAPartirDaParte(${idx})">▶ PLAY DAQUI</button>
+                  <button class="btn-rec btn-sm" onclick="excluirParte(${idx})">🗑 EXCLUIR</button>
+                </div>
+              </div>
+              <textarea class="parte-code" placeholder="Cole ou edite o código da Parte ${idx + 1} aqui..." oninput="aoEditarCodigoParte(${idx}, this.value)">${textoExibir}</textarea>
+            </td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    function aoEditarCodigoParte(idx, novoTexto) {
+      const parte = partesGravadas[idx];
+      if (!parte) return;
+
+      parte.textoManual = novoTexto;
+      parte.editadoManualmente = true;
+      const tempoAnterior = idx > 0 ? (partesGravadas[idx - 1].fimMs || 0) : 0;
+      const passosParseados = parsearCodigoCpp(novoTexto, tempoAnterior);
+      parte.passos = passosParseados;
+      parte.eventos = [];
+
+      if (passosParseados.length > 0) {
+        parte.inicioMs = passosParseados[0].tempo;
+        parte.fimMs = passosParseados[passosParseados.length - 1].tempo + 600;
+      } else {
+        parte.inicioMs = tempoAnterior;
+        parte.fimMs = tempoAnterior;
+      }
+
+      recalcularLinhaDoTempo();
+      atualizarTextoRoteiroCompleto();
+      atualizarBotoesGravacao();
+      salvarPartesNoNavegador();
+
+      const metas = document.querySelectorAll("#corpoTabelaPartes .parte-meta");
+      if (metas[idx]) {
+        const iniSeg = ((parte.inicioMs || 0) / 1000).toFixed(1);
+        const fimSeg = ((parte.fimMs || 0) / 1000).toFixed(1);
+        metas[idx].innerText = `${iniSeg}s → ${fimSeg}s | ${passosParseados.length} passo(s)`;
+      }
+    }
+
+    function adicionarParteManual() {
+      if (gravando) return;
+      const inicioBase = duracaoTotalGravada;
+      partesGravadas.push({
+        inicioMs: inicioBase,
+        fimMs: inicioBase,
+        passos: [],
+        eventos: [],
+        editadoManualmente: true,
+        textoManual: ""
+      });
+      renderizarTabelaPartes();
+      atualizarBotoesGravacao();
+      salvarPartesNoNavegador();
+
+      const caixas = document.querySelectorAll("#corpoTabelaPartes .parte-code");
+      if (caixas.length > 0) caixas[caixas.length - 1].focus();
+    }
+
+    function excluirParte(idx) {
+      if (gravando || idx < 0 || idx >= partesGravadas.length) return;
+      cancelarReplay();
+      partesGravadas.splice(idx, 1);
+      recalcularLinhaDoTempo();
+      renderizarTabelaPartes();
+      atualizarTextoRoteiroCompleto();
+      atualizarBotoesGravacao();
+      salvarPartesNoNavegador();
     }
 
     function toggleRec(modo) {
@@ -658,104 +1057,183 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       if (!gravando) {
         gravando = true;
         cmdAtivo = "";
-        bracoAtivo = "";
+        estadoGravOmbro.e.ativo = false;
+        estadoGravOmbro.d.ativo = false;
         movX = movY = movRot = movPicoMag = 0;
 
         if (modo === "novo") {
           duracaoTotalGravada = 0;
-          parteAtualId = 1;
-          historicoPartes = [{ parteId: 1, duracaoAntes: 0 }];
-          passosGravados = [];
-          eventosGravados = [];
+          partesGravadas = [{
+            inicioMs: 0,
+            fimMs: 0,
+            passos: [],
+            eventos: [],
+            editadoManualmente: false
+          }];
+          indiceParteAtiva = 0;
           inicioRec = Date.now();
-          atualizarTextoRoteiro();
+          renderizarTabelaPartes();
+          atualizarTextoRoteiroCompleto();
         } else if (modo === "continuar") {
-          // Desloca inicioRec para trás pela duração já gravada para encadear a nova parte no fim da linha do tempo.
-          parteAtualId++;
-          historicoPartes.push({ parteId: parteAtualId, duracaoAntes: duracaoTotalGravada });
-          inicioRec = Date.now() - duracaoTotalGravada;
+          const inicioParte = duracaoTotalGravada;
+          partesGravadas.push({
+            inicioMs: inicioParte,
+            fimMs: inicioParte,
+            passos: [],
+            eventos: [],
+            editadoManualmente: false
+          });
+          indiceParteAtiva = partesGravadas.length - 1;
+          inicioRec = Date.now() - inicioParte;
+          renderizarTabelaPartes();
         } else if (modo === "overdub") {
-          parteAtualId++;
-          historicoPartes.push({ parteId: parteAtualId, duracaoAntes: duracaoTotalGravada });
+          const partesExistentes = [...partesGravadas];
+          partesGravadas.push({
+            inicioMs: 0,
+            fimMs: 0,
+            passos: [],
+            eventos: [],
+            editadoManualmente: false
+          });
+          indiceParteAtiva = partesGravadas.length - 1;
           inicioRec = Date.now();
+          renderizarTabelaPartes();
           if (document.getElementById("chkReplayOverdub").checked) {
-            testarRoteiroGravado([...eventosGravados]);
+            executarListaPartes(partesExistentes, 0);
           }
         }
         atualizarBotoesGravacao();
       } else {
-        // Fecha qualquer segmento pendente e reordena toda a linha do tempo antes de encerrar.
         const tempoFim = Date.now() - inicioRec;
         fecharSegmentoGravado(tempoFim);
-        fecharSegmentoBraco(tempoFim);
-        duracaoTotalGravada = Math.max(duracaoTotalGravada, tempoFim);
-        eventosGravados.sort((a, b) => a.tempo - b.tempo);
-        atualizarTextoRoteiro();
-        gravando = false;
-        atualizarBotoesGravacao();
-      }
-    }
+        fecharSegmentoOmbro("e", tempoFim);
+        fecharSegmentoOmbro("d", tempoFim);
 
-    function desfazerUltimaParte() {
-      if (gravando || historicoPartes.length === 0) return;
-      cancelarReplay();
-      const ultima = historicoPartes.pop();
-      passosGravados = passosGravados.filter((p) => p.parte !== ultima.parteId);
-      eventosGravados = eventosGravados.filter((e) => e.parte !== ultima.parteId);
-      duracaoTotalGravada = ultima.duracaoAntes;
-      atualizarTextoRoteiro();
-      atualizarBotoesGravacao();
+        if (indiceParteAtiva >= 0 && partesGravadas[indiceParteAtiva]) {
+          const p = partesGravadas[indiceParteAtiva];
+          p.fimMs = Math.max(p.fimMs || 0, tempoFim);
+          p.eventos.sort((a, b) => a.tempo - b.tempo);
+          p.passos.sort((a, b) => a.tempo - b.tempo);
+        }
+
+        recalcularLinhaDoTempo();
+        renderizarTabelaPartes();
+        atualizarTextoRoteiroCompleto();
+        gravando = false;
+        indiceParteAtiva = -1;
+        atualizarBotoesGravacao();
+        salvarPartesNoNavegador();
+      }
     }
 
     function limparRoteiro() {
       cancelarReplay();
-      document.getElementById("codeOut").value = "";
+      partesGravadas = [];
+      indiceParteAtiva = -1;
       duracaoTotalGravada = 0;
-      parteAtualId = 0;
-      historicoPartes = [];
-      passosGravados = [];
-      eventosGravados = [];
+      document.getElementById("codeOut").value = "";
+      renderizarTabelaPartes();
       atualizarBotoesGravacao();
+      salvarPartesNoNavegador();
     }
 
-    function testarRoteiroGravado(listaOpcional) {
-      cancelarReplay();
-      const lista = listaOpcional || [...eventosGravados].sort((a, b) => a.tempo - b.tempo);
-      if (lista.length === 0) return;
+    function executarAcaoCppNoRobo(acao) {
+      const m = acao.match(/funcoes_\.(\w+)\(([^)]*)\)/);
+      if (!m) return;
 
-      lista.forEach((ev) => {
-        const id = setTimeout(() => {
-          if (ev.tipo === "raw" && ws.readyState === WebSocket.OPEN) {
-            ws.send(ev.cmd);
-            // Evita que o comando "stop" da base interrompa o motor de um ombro segurado durante o overdub.
-            if (ev.cmd === "stop" && comandoBracoAtivo !== "") {
-              ws.send(comandoBracoAtivo);
-            }
-          }
-        }, ev.tempo);
-        timersReplay.push(id);
+      const metodo = m[1];
+      const args = m[2].split(",").map((s) => s.replace(/f$/i, "").trim());
+
+      if (metodo === "turn") {
+        wsSend(`turn:${parseFloat(args[0]) || 0},${parseInt(args[1]) || 120}`);
+      } else if (metodo === "turnTo") {
+        wsSend(`turn_to:${parseFloat(args[0]) || 0},${parseInt(args[1]) || 120}`);
+      } else if (metodo === "moverOmbroEsq") {
+        wsSend(`OMB_POS_E:${parseFloat(args[0]) || 0},${parseInt(args[1]) || 130}`);
+      } else if (metodo === "moverOmbroDir") {
+        wsSend(`OMB_POS_D:${parseFloat(args[0]) || 0},${parseInt(args[1]) || 130}`);
+      } else if (metodo === "moverCotoveloEsq") {
+        wsSend(`srv_pos_e:${parseFloat(args[0]) || 0}`);
+      } else if (metodo === "moverCotoveloDir") {
+        wsSend(`srv_pos_d:${parseFloat(args[0]) || 0}`);
+      } else if (metodo === "enviarCodigoCenario") {
+        const cod = parseInt(args[0]) || 2565;
+        const ch = (args[1] !== undefined && args[1] !== "") ? parseInt(args[1]) : 10;
+        wsSend(`ble_tx:${cod},${ch}`);
+      } else if (metodo === "run") {
+        wsSend(`run:${parseFloat(args[0]) || 0},${parseInt(args[1]) || 120}`);
+      } else if (metodo === "strafe") {
+        wsSend(`strafe:${parseFloat(args[0]) || 0},${parseInt(args[1]) || 120}`);
+      } else if (metodo === "diagonal") {
+        const dist = parseFloat(args[0]) || 0;
+        const isDir = (args[1] === "true") ? 1 : 0;
+        const vel = parseInt(args[2]) || 120;
+        wsSend(`diag:${dist},${isDir},${vel}`);
+      }
+    }
+
+    function executarListaPartes(listaPartes, indiceInicial) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        conectarWebSocket();
+        alert("WebSocket desconectado do robô! Verifique o Wi-Fi do Chapeleiro e tente clicar em PLAY novamente.");
+        return;
+      }
+
+      cancelarReplay();
+      if (!listaPartes || indiceInicial < 0 || indiceInicial >= listaPartes.length) return;
+
+      const fatia = listaPartes.slice(indiceInicial);
+      let tempoBase = fatia[0].inicioMs || 0;
+      if (fatia[0].passos && fatia[0].passos.length > 0 && fatia[0].passos[0].tempo < tempoBase) {
+        tempoBase = fatia[0].passos[0].tempo;
+      }
+
+      fatia.forEach((parte) => {
+        if (!parte.editadoManualmente && parte.eventos && parte.eventos.length > 0) {
+          parte.eventos.forEach((ev) => {
+            const atraso = Math.max(0, ev.tempo - tempoBase);
+            const id = setTimeout(() => {
+              if (ev.tipo === "raw") {
+                wsSend(ev.cmd === "stop" ? "stop_base" : ev.cmd);
+              }
+            }, atraso);
+            timersReplay.push(id);
+          });
+        } else if (parte.passos && parte.passos.length > 0) {
+          parte.passos.forEach((passo) => {
+            const atraso = Math.max(0, passo.tempo - tempoBase);
+            const id = setTimeout(() => executarAcaoCppNoRobo(passo.acao), atraso);
+            timersReplay.push(id);
+          });
+        }
       });
     }
 
-    function substituirGiroNoReplay(segId, tempoInicio, anguloAbsolutoFinal, vel) {
-      // Remove os comandos brutos em malha aberta do giro manual e injeta turn_to: pela orientação absoluta do SPIKE.
-      eventosGravados = eventosGravados.filter((e) => e.segId !== segId);
-      eventosGravados.push({
+    function testarAPartirDaParte(indiceParte) {
+      executarListaPartes(partesGravadas, indiceParte);
+    }
+
+    function substituirGiroNoReplay(parte, segId, tempoInicio, anguloFinal, vel) {
+      parte.eventos = parte.eventos.filter((e) => e.segId !== segId);
+      parte.eventos.push({
         tempo: tempoInicio,
         tipo: "raw",
-        cmd: `turn_to:${anguloAbsolutoFinal},${vel}`,
-        parte: parteAtualId
+        cmd: `turn:${anguloFinal},${vel}`
       });
     }
 
     function fecharSegmentoGravado(tempo) {
-      if (!cmdAtivo) return;
+      if (!cmdAtivo || indiceParteAtiva < 0) return;
+      const parte = partesGravadas[indiceParteAtiva];
       const vel = parseInt(document.getElementById("forcaBase").value) || 120;
-      // Usa o maior deslocamento entre M1 e M2 porque nas diagonais esquerdas M1 fica parado.
-      const ticksDesloc = Math.max(Math.abs(ticks[0] - m1Start), Math.abs(ticks[1] - m2Start));
+      const ticksDesloc = Math.max(
+        Math.abs(ticks[0] - m1Start),
+        Math.abs(ticks[1] - m2Start),
+        Math.abs(ticks[2] - m3Start),
+        Math.abs(ticks[3] - m4Start)
+      );
       const dist = (ticksDesloc / kTicksPorMm).toFixed(1);
       const ang = (gyroAtual - gyroStart).toFixed(1);
-      const angAbsFinal = normalizarAngulo180(gyroAtual);
       let acao = "";
 
       if (cmdAtivo === "w") acao = `funcoes_.run(${dist}f, ${vel});`;
@@ -767,82 +1245,76 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       else if (cmdAtivo === "sd") acao = `funcoes_.diagonal(-${dist}f, false, ${vel});`;
       else if (cmdAtivo === "sa") acao = `funcoes_.diagonal(-${dist}f, true, ${vel});`;
       else if (cmdAtivo === "e" || cmdAtivo === "q") {
-        // Grava a orientação absoluta final para evitar acúmulo de erro entre passos na rotina autônoma.
-        acao = `funcoes_.turnTo(${angAbsFinal}f, ${vel});`;
-        substituirGiroNoReplay(segAtualId, segInicioTempo, angAbsFinal, vel);
+        acao = `funcoes_.turn(${ang}f, ${vel});`;
+        substituirGiroNoReplay(parte, segAtualId, segInicioTempo, ang, vel);
       } else if (cmdAtivo === "mov") {
         const temLinear = movPicoMag > 0.05;
         const temGiro = Math.abs(movRot) > 0.05;
         if (temLinear && temGiro && Math.abs(parseFloat(ang)) > 1.0) {
           acao = `funcoes_.moverGirando(${movX.toFixed(2)}f, ${movY.toFixed(2)}f, ${ang}f, ${vel});`;
         } else if (temGiro && !temLinear && Math.abs(parseFloat(ang)) > 1.0) {
-          acao = `funcoes_.turnTo(${angAbsFinal}f, ${vel});`;
-          substituirGiroNoReplay(segAtualId, segInicioTempo, angAbsFinal, vel);
+          acao = `funcoes_.turn(${ang}f, ${vel});`;
+          substituirGiroNoReplay(parte, segAtualId, segInicioTempo, ang, vel);
         } else if (temLinear && !temGiro && parseFloat(dist) > 1.0) {
           const velProp = Math.max(25, Math.round(vel * Math.min(1.0, movPicoMag)));
           const angDir = Math.atan2(movY, movX) * (180.0 / Math.PI);
-          if (angDir >= 67.5 && angDir <= 112.5) {
-            acao = `funcoes_.run(${dist}f, ${velProp});`;
-          } else if (angDir <= -67.5 && angDir >= -112.5) {
-            acao = `funcoes_.run(-${dist}f, ${velProp});`;
-          } else if (angDir > -22.5 && angDir < 22.5) {
-            acao = `funcoes_.strafe(${dist}f, ${velProp});`;
-          } else if (angDir > 157.5 || angDir < -157.5) {
-            acao = `funcoes_.strafe(-${dist}f, ${velProp});`;
-          } else if (angDir > 22.5 && angDir < 67.5) {
-            acao = `funcoes_.diagonal(${dist}f, true, ${velProp});`;
-          } else if (angDir > 112.5 && angDir < 157.5) {
-            acao = `funcoes_.diagonal(${dist}f, false, ${velProp});`;
-          } else if (angDir > -67.5 && angDir < -22.5) {
-            acao = `funcoes_.diagonal(-${dist}f, false, ${velProp});`;
-          } else {
-            acao = `funcoes_.diagonal(-${dist}f, true, ${velProp});`;
-          }
+          if (angDir >= 67.5 && angDir <= 112.5) acao = `funcoes_.run(${dist}f, ${velProp});`;
+          else if (angDir <= -67.5 && angDir >= -112.5) acao = `funcoes_.run(-${dist}f, ${velProp});`;
+          else if (angDir > -22.5 && angDir < 22.5) acao = `funcoes_.strafe(${dist}f, ${velProp});`;
+          else if (angDir > 157.5 || angDir < -157.5) acao = `funcoes_.strafe(-${dist}f, ${velProp});`;
+          else if (angDir > 22.5 && angDir < 67.5) acao = `funcoes_.diagonal(${dist}f, true, ${velProp});`;
+          else if (angDir > 112.5 && angDir < 157.5) acao = `funcoes_.diagonal(${dist}f, false, ${velProp});`;
+          else if (angDir > -67.5 && angDir < -22.5) acao = `funcoes_.diagonal(-${dist}f, false, ${velProp});`;
+          else acao = `funcoes_.diagonal(-${dist}f, true, ${velProp});`;
         }
       }
 
       if (acao && (parseFloat(dist) > 1.0 || cmdAtivo === "e" || cmdAtivo === "q" || cmdAtivo === "mov")) {
-        registrarPasso(tempo, acao);
+        registrarPassoNaParte(parte, segInicioTempo, acao, tempo);
       }
       cmdAtivo = "";
     }
 
     function sendCmd(cmd) {
-      if (ws.readyState === WebSocket.OPEN) ws.send(cmd);
-      if (!gravando) return;
+      wsSend(cmd);
+      if (!gravando || indiceParteAtiva < 0) return;
 
+      const parte = partesGravadas[indiceParteAtiva];
       const tempo = Date.now() - inicioRec;
       const velBase = parseInt(document.getElementById("forcaBase").value) || 120;
 
-      if (cmd.startsWith("turn:")) {
+      if (cmd.startsWith("ble_tx:")) {
+        const partes = cmd.substring(7).split(",");
+        const cod = parseInt(partes[0]) || 2565;
+        const ch = (partes[1] !== undefined) ? parseInt(partes[1]) : 10;
+        registrarPassoNaParte(parte, tempo, `funcoes_.enviarCodigoCenario(${cod}, ${ch});`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
+      } else if (cmd.startsWith("turn:")) {
         const partes = cmd.substring(5).split(",");
-        const delta = parseFloat(partes[0]) || 0;
+        const ang = parseFloat(partes[0]).toFixed(1);
         const v = partes[1] || velBase;
-        // Converte o giro relativo no alvo absoluto correspondente ao 0° fixo da arena.
-        const angAbs = normalizarAngulo180(gyroAtual + delta);
-        registrarPasso(tempo, `funcoes_.turnTo(${angAbs}f, ${v});`);
-        eventosGravados.push({ tempo, tipo: "raw", cmd: `turn_to:${angAbs},${v}`, parte: parteAtualId });
+        registrarPassoNaParte(parte, tempo, `funcoes_.turn(${ang}f, ${v});`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("turn_to:")) {
         const partes = cmd.substring(8).split(",");
         const ang = parseFloat(partes[0]).toFixed(1);
         const v = partes[1] || velBase;
-        registrarPasso(tempo, `funcoes_.turnTo(${ang}f, ${v});`);
-        eventosGravados.push({ tempo, tipo: "raw", cmd, parte: parteAtualId });
+        registrarPassoNaParte(parte, tempo, `funcoes_.turnTo(${ang}f, ${v});`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("srv_pos_e:")) {
-        registrarPasso(tempo, `funcoes_.moverCotoveloEsq(${cmd.split(":")[1]}.0f);`);
-        eventosGravados.push({ tempo, tipo: "raw", cmd, parte: parteAtualId });
+        registrarPassoNaParte(parte, tempo, `funcoes_.moverCotoveloEsq(${cmd.split(":")[1]}.0f);`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("srv_pos_d:")) {
-        registrarPasso(tempo, `funcoes_.moverCotoveloDir(${cmd.split(":")[1]}.0f);`);
-        eventosGravados.push({ tempo, tipo: "raw", cmd, parte: parteAtualId });
+        registrarPassoNaParte(parte, tempo, `funcoes_.moverCotoveloDir(${cmd.split(":")[1]}.0f);`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("vel:") || cmd.startsWith("fod:")) {
-        eventosGravados.push({ tempo, tipo: "raw", cmd, parte: parteAtualId });
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("mov:")) {
         const partes = cmd.substring(4).split(",");
         const nx = parseFloat(partes[0]) || 0;
         const ny = parseFloat(partes[1]) || 0;
         const nrot = parseFloat(partes[2]) || 0;
 
-        // Evita fragmentar a gravação quando o polegar acelera ou desacelera gradualmente no mesmo rumo.
         const tinhaLinear = movPicoMag > 0.05;
         const magNovo = Math.hypot(nx, ny);
         const temLinear = magNovo > 0.05;
@@ -866,61 +1338,74 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
           fecharSegmentoGravado(tempo);
         }
         if (cmdAtivo !== "mov") {
-          m1Start = ticks[0];
-          m2Start = ticks[1];
+          m1Start = ticks[0]; m2Start = ticks[1]; m3Start = ticks[2]; m4Start = ticks[3];
           gyroStart = gyroAtual;
           cmdAtivo = "mov";
           movPicoMag = 0;
           segAtualId = ++contadorSegmentos;
           segInicioTempo = tempo;
-          eventosGravados.push({ tempo, tipo: "raw", cmd: `vel:${velBase}`, parte: parteAtualId, segId: segAtualId });
+          parte.eventos.push({ tempo, tipo: "raw", cmd: `vel:${velBase}`, segId: segAtualId });
         }
         movX = nx;
         movY = ny;
         movRot = nrot;
         if (magNovo > movPicoMag) movPicoMag = magNovo;
-        eventosGravados.push({ tempo, tipo: "raw", cmd, parte: parteAtualId, segId: segAtualId });
-      } else if (cmd === "stop") {
+        parte.eventos.push({ tempo, tipo: "raw", cmd, segId: segAtualId });
+      } else if (cmd === "stop_base" || cmd === "stop") {
         const tinhaSegmento = (cmdAtivo !== "");
         const segFechadoId = segAtualId;
         fecharSegmentoGravado(tempo);
-        // Só registra "stop" bruto se não acabou de ser substituído por um turn_to: fechado pelo giroscópio.
-        if (!tinhaSegmento || eventosGravados.some((e) => e.segId === segFechadoId)) {
-          eventosGravados.push({ tempo, tipo: "raw", cmd: "stop", parte: parteAtualId });
+        if (!tinhaSegmento || parte.eventos.some((e) => e.segId === segFechadoId)) {
+          parte.eventos.push({ tempo, tipo: "raw", cmd: "stop_base" });
         }
       } else if (["w","s","a","d","wd","wa","sd","sa","q","e"].includes(cmd)) {
         if (cmdAtivo !== "" && cmdAtivo !== cmd) {
           fecharSegmentoGravado(tempo);
         }
         if (cmdAtivo !== cmd) {
-          m1Start = ticks[0];
-          m2Start = ticks[1];
+          m1Start = ticks[0]; m2Start = ticks[1]; m3Start = ticks[2]; m4Start = ticks[3];
           gyroStart = gyroAtual;
           cmdAtivo = cmd;
           segAtualId = ++contadorSegmentos;
           segInicioTempo = tempo;
-          eventosGravados.push({ tempo, tipo: "raw", cmd: `vel:${velBase}`, parte: parteAtualId, segId: segAtualId });
-          eventosGravados.push({ tempo, tipo: "raw", cmd, parte: parteAtualId, segId: segAtualId });
+          parte.eventos.push({ tempo, tipo: "raw", cmd: `vel:${velBase}`, segId: segAtualId });
+          parte.eventos.push({ tempo, tipo: "raw", cmd, segId: segAtualId });
         }
       }
     }
 
-    function registrarPasso(tempo, acao) {
-      passosGravados.push({ tempo, acao, parte: parteAtualId });
-      // Mantém os comandos sempre em ordem crescente de tempo mesmo após gravar novas camadas por cima.
-      passosGravados.sort((a, b) => a.tempo - b.tempo);
-      atualizarTextoRoteiro();
+    function registrarPassoNaParte(parte, tempoInicio, acao, tempoFimOpcional = tempoInicio) {
+      parte.passos.push({ tempo: tempoInicio, acao });
+      parte.passos.sort((a, b) => a.tempo - b.tempo);
+      parte.fimMs = Math.max(parte.fimMs || 0, tempoFimOpcional);
+      recalcularLinhaDoTempo();
+      renderizarTabelaPartes();
+      atualizarTextoRoteiroCompleto();
       atualizarBotoesGravacao();
+      salvarPartesNoNavegador();
     }
 
-    function atualizarTextoRoteiro() {
+    function atualizarTextoRoteiroCompleto() {
       const box = document.getElementById("codeOut");
+      const todosPassos = [];
+      partesGravadas.forEach((parte, idxParte) => {
+        if (parte.passos) {
+          parte.passos.forEach((p) => todosPassos.push({ tempo: p.tempo, acao: p.acao, parteNum: idxParte + 1 }));
+        }
+      });
+      todosPassos.sort((a, b) => a.tempo - b.tempo);
+
       let texto = "// Cole este bloco dentro de BaseCenas::atualizarCenas() para reproduzir a rotina.\n";
-      passosGravados.forEach((item, indice) => {
-        texto += `if (passoAtual_ == ${indice} && decorridoMs >= ${item.tempo}) {\n    ${item.acao}\n    passoAtual_++;\n}\n`;
+      todosPassos.forEach((item, indice) => {
+        texto += `// [Parte ${item.parteNum}]\nif (passoAtual_ == ${indice} && decorridoMs >= ${item.tempo}) {\n    ${item.acao}\n    passoAtual_++;\n}\n`;
       });
       box.value = texto;
-      box.scrollTop = box.scrollHeight;
+    }
+
+    function copiarCodigoCompleto() {
+      const box = document.getElementById("codeOut");
+      box.select();
+      navigator.clipboard?.writeText(box.value);
     }
 
     function pressionarBotaoDir(id) {
@@ -935,6 +1420,8 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
     function pararTudoManual() {
       cancelarReplay();
+      if (intervaloOmbro.e) pararOmbro("e", false);
+      if (intervaloOmbro.d) pararOmbro("d", false);
       for (const k in teclasAtivas) delete teclasAtivas[k];
       for (const k in botoesAtivos) delete botoesAtivos[k];
       gpX = gpY = gpRot = 0;
@@ -944,7 +1431,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
 
     function calcularVetorManual() {
-      // Prioriza os analógicos do controle Logitech quando movimentados; caso contrário usa teclado/touch.
       if (gpX !== 0 || gpY !== 0 || gpRot !== 0) {
         return { x: gpX, y: gpY, rot: gpRot, viaGamepad: true };
       }
@@ -963,7 +1449,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       y = Math.max(-1, Math.min(1, y));
       rot = Math.max(-1, Math.min(1, rot));
 
-      // Normaliza apenas (x, y) nas diagonais para manter velocidade linear constante sem anular a rotação.
       const magXY = Math.hypot(x, y);
       if (magXY > 1) {
         x /= magXY;
@@ -973,12 +1458,8 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
 
     function resolverComandoManual(x, y, rot, viaGamepad) {
-      if (x === 0 && y === 0 && rot === 0) return "stop";
-
-      // Envia vetor contínuo mov: para preservar o controle proporcional dos analógicos do gamepad.
-      if (viaGamepad) {
-        return `mov:${x.toFixed(2)},${y.toFixed(2)},${rot.toFixed(2)}`;
-      }
+      if (x === 0 && y === 0 && rot === 0) return "stop_base";
+      if (viaGamepad) return `mov:${x.toFixed(2)},${y.toFixed(2)},${rot.toFixed(2)}`;
 
       if (rot === 0) {
         if (y > 0 && x > 0) return "wd";
@@ -990,10 +1471,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         if (x > 0) return "d";
         if (x < 0) return "a";
       }
-      if (x === 0 && y === 0) {
-        return rot < 0 ? "q" : "e";
-      }
-
+      if (x === 0 && y === 0) return rot < 0 ? "q" : "e";
       return `mov:${x.toFixed(2)},${y.toFixed(2)},${rot.toFixed(2)}`;
     }
 
@@ -1028,25 +1506,38 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
 
     document.addEventListener("keydown", (ev) => {
-      // Intercepta dígitos do teclado enquanto RB ou LB estiverem pressionados no gamepad.
-      if (gpModoGiroBumper) {
-        if ((ev.key >= "0" && ev.key <= "9") || ((ev.key === "." || ev.key === ",") && !gpBufferAngulo.includes("."))) {
-          ev.preventDefault();
-          gpBufferAngulo += (ev.key === ",") ? "." : ev.key;
-          atualizarStatusGamepad(null);
+      if (modoGiroDigitado !== null) {
+        ev.preventDefault();
+        if (ev.repeat) return;
+
+        if (ev.key >= "0" && ev.key <= "9") {
+          if (bufferGrausDigitados.length < 5) {
+            bufferGrausDigitados += ev.key;
+            giroDigitadoCancelado = false;
+          }
+        } else if ((ev.key === "." || ev.key === ",") && !bufferGrausDigitados.includes(".")) {
+          bufferGrausDigitados = (bufferGrausDigitados || "0") + ".";
+          giroDigitadoCancelado = false;
         } else if (ev.key === "Backspace") {
-          ev.preventDefault();
-          gpBufferAngulo = gpBufferAngulo.slice(0, -1);
-          atualizarStatusGamepad(null);
+          bufferGrausDigitados = bufferGrausDigitados.slice(0, -1);
         } else if (ev.key === "Escape") {
-          ev.preventDefault();
-          gpBufferAngulo = "";
-          atualizarStatusGamepad(null);
+          giroDigitadoCancelado = true;
+          bufferGrausDigitados = "";
         }
+        atualizarVisorGiroDigitado();
         return;
       }
 
       if (ev.repeat) return;
+
+      const tag = document.activeElement?.tagName;
+      if (tag === "INPUT" || tag === "TEXTAREA") return;
+
+      if (ev.key === "Tab") {
+        ev.preventDefault();
+        alternarModoControleGamepad();
+        return;
+      }
 
       if (ev.key === "ArrowLeft") {
         ev.preventDefault();
@@ -1058,9 +1549,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         executarGiroSeta(1);
         return;
       }
-
-      const tag = document.activeElement?.tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
 
       const k = ev.key.toLowerCase();
 
@@ -1087,6 +1575,8 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         sincronizarMovimentoManual();
       }
     });
+
+    carregarPartesDoNavegador();
   </script>
 </body>
 </html>

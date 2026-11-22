@@ -14,9 +14,8 @@ void setup() {
 
     if (kModoDesenvolvimento) {
         setupBase.inicializarRedeEInterface(funcoes, cenas);
-    } else {
-        cenas.iniciarCena(1);
     }
+    // Quando kModoDesenvolvimento = false, o Wi-Fi fica desligado e o robô aguarda a seta direita (>) do SPIKE.
 }
 
 void loop() {

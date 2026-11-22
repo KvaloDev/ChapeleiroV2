@@ -1,8 +1,7 @@
-// Evita inclusão múltipla deste cabeçalho na mesma unidade de compilação para prevenir erros de redefinição.
 #pragma once
 #include <Arduino.h>
 
-// Em competição (false), desativa o Wi-Fi para economizar bateria e executa a rotina autônoma direto no boot.
+// true = liga o Wi-Fi e o painel de gravação | false = desliga o Wi-Fi para apresentação.
 constexpr bool kModoDesenvolvimento = true;
 
 constexpr uint8_t kPinRxSerial2 = 16;
@@ -14,8 +13,10 @@ constexpr float kTicksPorMmBase = 1.65f;
 constexpr int kPwmMax = 255;
 // Piso de PWM para vencer a zona morta e o atrito estático dos motores Yellow Jacket.
 constexpr int kPwmMinBase = 15;
-// TODO: confirmar intenção
+
+// Canais BLE Pybricks: canal 8 recebe o giroscópio do SPIKE do Chapeleiro; canal 10 envia o código 2565 ao cenário.
 constexpr uint8_t kCanalSpikeGyro = 8;
+constexpr uint8_t kCanalSpikeCenario = 10;
 
 // Colocar -1 caso girar o robô no sentido horário diminua o ângulo lido pelo hub.
 constexpr int kDirGyroSpike = 1;

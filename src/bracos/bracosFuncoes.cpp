@@ -3,6 +3,8 @@
 #include "bracosCenas.h"
 #include "config.h"
 
+extern BracosSetup setupBracos;
+
 namespace {
 // Canais LEDC altos (8 a 11) isolados dos timers 0-3 usados pela biblioteca ESP32Servo.
 constexpr uint8_t kChOmbroEsqR = 8;
@@ -128,6 +130,15 @@ void BracosFuncoes::processarSerial2(BracosCenas& cenas) {
 
         if (cmd.startsWith("CENA:")) {
             cenas.iniciarCena(cmd.substring(5).toInt());
+        } else if (cmd.startsWith("BLE_TX:")) {
+            int virgula = cmd.indexOf(',');
+            int16_t codigo = (virgula > 7)
+                ? static_cast<int16_t>(cmd.substring(7, virgula).toInt())
+                : static_cast<int16_t>(cmd.substring(7).toInt());
+            uint8_t canal = (virgula > 7)
+                ? static_cast<uint8_t>(constrain(cmd.substring(virgula + 1).toInt(), 0, 255))
+                : kCanalSpikeCenario;
+            setupBracos.transmitirCodigoSpike(codigo, canal, 1500);
         } else if (cmd.startsWith("vel_braco:")) {
             velManualOmbro_ = constrain(cmd.substring(10).toInt(), kPwmMinOmbro, kPwmMax);
         } else if (cmd.startsWith("SRV_POS_E:") || cmd.startsWith("srv_pos_e:")) {
@@ -160,8 +171,14 @@ void BracosFuncoes::processarSerial2(BracosCenas& cenas) {
             isManualOmbroAtivo_ = true;
             ultimoCmdManualBracoMs_ = millis();
             aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, -velManualOmbro_);
-        } else if (cmd == "BE_STP" || cmd == "BD_STP" || cmd == "be_stp" || cmd == "bd_stp") {
-            pararOmbros();
+        } else if (cmd == "BE_STP" || cmd == "be_stp") {
+            // Para apenas o ombro esquerdo para permitir mover os dois ombros juntos pelos analógicos.
+            isOmbroEsqAtivo_ = false;
+            aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, 0);
+        } else if (cmd == "BD_STP" || cmd == "bd_stp") {
+            // Para apenas o ombro direito sem cortar o esquerdo.
+            isOmbroDirAtivo_ = false;
+            aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, 0);
         }
     }
 }

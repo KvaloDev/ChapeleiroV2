@@ -19,4 +19,5 @@ void loop() {
     cenasBracos.atualizarCenas();
     funcoesBracos.atualizarCinematica();
     funcoesBracos.enviarTelemetriaSerial2();
+    setupBracos.atualizarTransmissaoBle();
 }

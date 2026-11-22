@@ -1,4 +1,3 @@
-// Evita inclusão múltipla deste cabeçalho na mesma unidade de compilação para prevenir erros de redefinição.
 #pragma once
 #include <Arduino.h>
 #include "config.h"
@@ -12,24 +11,22 @@ public:
     void run(float distanciaMm, int velocidade);
     void strafe(float distanciaMm, int velocidade);
     void diagonal(float distanciaMm, bool isDireita, int velocidade);
-    // Soma graus ao alvo absoluto vigente para rotacionar sem acumular erros residuais de giros anteriores.
     void turn(float graus, int velocidade);
-    // Orienta o chassi na direção absoluta equivalente (módulo 360°) pelo menor caminho angular (<= 180°).
     void turnTo(float anguloAlvo, int velocidade);
-    // Desloca o chassi na direção (xCampo, yCampo) enquanto rotaciona até completar anguloGraus pelo giroscópio.
     void moverGirando(float xCampo, float yCampo, float anguloGraus, int velocidade);
-
-    // Delega o controle dos atuadores superiores via Serial2 porque os drivers ficam na segunda ESP32.
     void moverOmbroEsq(float graus, int velocidade);
     void moverOmbroDir(float graus, int velocidade);
     void moverCotoveloEsq(float graus);
     void moverCotoveloDir(float graus);
+    void enviarCodigoCenario(int codigo = 2565, int canal = kCanalSpikeCenario);
 
     // Desacelera usando a rampa de frenagem; usar pararBrusco() quando precisar cortar energia instantaneamente.
     void parar();
+    void pararBase();
     void pararBrusco();
     // Salva a leitura atual do SPIKE como offset para definir o 0° lógico sem precisar reiniciar o hub.
     void zerarGyro();
+    bool consumirStartSpike();
     void processarComandoManual(const String& cmd);
     void processarSerial2();
     // Precisa rodar continuamente no loop() para atualizar as malhas fechadas e aplicar os degraus da rampa.
@@ -43,7 +40,6 @@ public:
     float getGyroRelativo() const;
 
 private:
-    void iniciarControleTurn_(float alvoContinuo, int velocidade);
     void atualizarAlvoManualMecanum_();
     void definirAlvoMecanum_(int fl, int fr, int rl, int rr);
     void aplicarPwmRoda_(uint8_t pinF, uint8_t pinT, int pwm);
@@ -54,6 +50,7 @@ private:
     String ultimoCmdManual_ = "stop";
     int velocidadeManual_ = 120;
     bool fieldOriented_ = true;
+    bool startSpikePendente_ = false;
 
     // Componentes normalizados (-1.0 a 1.0) para permitir translação e rotação simultâneas no modo manual.
     float manualX_ = 0.0f;
@@ -77,20 +74,11 @@ private:
     long inicioM1_ = 0;
     float alvoTicks_ = 0.0f;
     float alvoAngulo_ = 0.0f;
-    // Mantém a referência absoluta acumulada para eliminar desvio progressivo entre giros relativos seguidos.
-    float headingAlvoAbsoluto_ = 0.0f;
-    bool gyroManualSujo_ = false;
     float offsetGyro_ = 0.0f;
     int velAlvo_ = 0;
-
-    // Variáveis do controlador PD e assentamento fino para evitar ultrapassagem por inércia nos giros precisos.
+    // Registra o início do giro para abortar por segurança caso a leitura do SPIKE falhe no meio da rotação.
     unsigned long inicioTurnMs_ = 0;
-    float ultimoGyroTurn_ = 0.0f;
-    unsigned long ultimoTempoGyroTurnMs_ = 0;
-    float velAngularFiltrada_ = 0.0f;
-    float boostAntiStallTurn_ = 0.0f;
-    unsigned long inicioEstavelTurnMs_ = 0;
 
     long ticksOmbroEsq_ = 0;
     long ticksOmbroDir_ = 0;
-}; 
+};
