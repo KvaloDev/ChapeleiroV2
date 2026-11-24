@@ -7,6 +7,22 @@ namespace {
 // Mantém a referência angular absoluta para giros relativos consecutivos sem acumular erro da zona morta.
 float sAlvoAbsolutoGyro = 0.0f;
 bool sGyroAlteradoManualmente = false;
+
+// Controle PI de rumo em movimentos lineares (run/strafe/diagonal) para eliminar desvio por atrito assimétrico.
+float sRumoAlvoLinear = 0.0f;
+float sIntegralRumoLinear = 0.0f;
+unsigned long sUltimoCalculoRumoMs = 0;
+constexpr float kKpRumoLinear = 4.5f;
+constexpr float kKiRumoLinear = 2.2f;
+constexpr float kMaxIntegralRumoPwm = 30.0f;
+constexpr int kMaxCorrecaoRumoPwm = 45;
+
+// Ganho proporcional da desaceleração linear (~30 cm antes do alvo a PWM 120) para evitar balanço na parada.
+constexpr float kGanhoDesacelLinear = 0.24f;
+
+// Rampa ágil exclusiva para giros (Turn/TurnTo) para vencer o atrito lateral rápido sem afetar a suavidade do Run.
+constexpr float kPassoAcelTurnPwm = 45.0f;
+constexpr float kPassoFreioTurnPwm = 50.0f;
 }  // namespace
 
 float BaseFuncoes::getGyroRelativo() const {
@@ -17,6 +33,8 @@ float BaseFuncoes::getGyroRelativo() const {
 void BaseFuncoes::zerarGyro() {
     offsetGyro_ = anguloSpikeGraus;
     sAlvoAbsolutoGyro = 0.0f;
+    sRumoAlvoLinear = 0.0f;
+    sIntegralRumoLinear = 0.0f;
     sGyroAlteradoManualmente = false;
 }
 
@@ -138,7 +156,7 @@ void BaseFuncoes::parar() {
 }
 
 void BaseFuncoes::pararBrusco() {
-    // Zera os PWMs imediatamente sem rampa para impedir que a inércia faça o robô passar do alvo autônomo.
+    // Trava as rodas no alvo de giro assim que a desaceleração final atinge o piso mínimo.
     definirAlvoMecanum_(0, 0, 0, 0);
     manualX_ = manualY_ = manualRot_ = 0.0f;
     pwmAtualFL_ = pwmAtualFR_ = pwmAtualRL_ = pwmAtualRR_ = 0.0f;
@@ -152,6 +170,9 @@ void BaseFuncoes::run(float distanciaMm, int velocidade) {
     noInterrupts(); inicioM1_ = ticksM1; interrupts();
     alvoTicks_ = distanciaMm * kTicksPorMmBase;
     velAlvo_ = constrain(velocidade, kPwmMinBase, kPwmMax);
+    sRumoAlvoLinear = getGyroRelativo();
+    sIntegralRumoLinear = 0.0f;
+    sUltimoCalculoRumoMs = millis();
     modoAtual_ = ModoTracao::Run;
 }
 
@@ -159,6 +180,9 @@ void BaseFuncoes::strafe(float distanciaMm, int velocidade) {
     noInterrupts(); inicioM1_ = ticksM1; interrupts();
     alvoTicks_ = distanciaMm * kTicksPorMmBase;
     velAlvo_ = constrain(velocidade, kPwmMinBase, kPwmMax);
+    sRumoAlvoLinear = getGyroRelativo();
+    sIntegralRumoLinear = 0.0f;
+    sUltimoCalculoRumoMs = millis();
     modoAtual_ = ModoTracao::Strafe;
 }
 
@@ -166,6 +190,9 @@ void BaseFuncoes::diagonal(float distanciaMm, bool isDireita, int velocidade) {
     noInterrupts(); inicioM1_ = ticksM1; interrupts();
     alvoTicks_ = distanciaMm * kTicksPorMmBase;
     velAlvo_ = constrain(velocidade, kPwmMinBase, kPwmMax);
+    sRumoAlvoLinear = getGyroRelativo();
+    sIntegralRumoLinear = 0.0f;
+    sUltimoCalculoRumoMs = millis();
     modoAtual_ = isDireita ? ModoTracao::DiagonalDir : ModoTracao::DiagonalEsq;
 }
 
@@ -355,8 +382,8 @@ void BaseFuncoes::processarComandoManual(const String& cmd) {
     }
 
     // Encaminha comandos dos braços e servos direto pela UART porque esses periféricos estão ligados na outra ESP32.
-    if (cmd.startsWith("srv_") || cmd.startsWith("be_") || cmd.startsWith("bd_") || cmd.startsWith("OMB_") ||
-        cmd == "BE_STP" || cmd == "BD_STP") {
+    if (cmd.startsWith("srv_") || cmd.startsWith("SRV_") || cmd.startsWith("be_") || cmd.startsWith("bd_") ||
+        cmd.startsWith("OMB_") || cmd == "BE_STP" || cmd == "BD_STP") {
         Serial2.println(cmd);
         return;
     }
@@ -382,22 +409,33 @@ void BaseFuncoes::processarComandoManual(const String& cmd) {
 }
 
 void BaseFuncoes::processarSerial2() {
+    static float sUltimoAnguloBruto = 0.0f;
+    static bool sFiltroGyroAtivo = false;
+
     // Esvazia todo o buffer RX a cada ciclo para descartar leituras antigas e usar sempre o ângulo mais recente.
     while (Serial2.available()) {
         String msg = Serial2.readStringUntil('\n');
         msg.trim();
         if (msg == "START") {
             startSpikePendente_ = true;
+            sFiltroGyroAtivo = false;
             continue;
         }
         if (!msg.startsWith("ENC:")) continue;
 
         int v1 = msg.indexOf(',');
         int v2 = msg.indexOf(',', v1 + 1);
-        if (v1 > 0 && v2 > v1) {
+        if (v1 > 4 && v2 > v1 + 1 && static_cast<int>(msg.length()) > v2 + 1) {
             ticksOmbroEsq_ = msg.substring(4, v1).toInt();
             ticksOmbroDir_ = msg.substring(v1 + 1, v2).toInt();
-            anguloSpikeGraus = msg.substring(v2 + 1).toFloat();
+            float novoAngulo = msg.substring(v2 + 1).toFloat();
+
+            // Ignora picos isolados causados por ruído elétrico dos motores na UART; aceita se repetir no pacote seguinte.
+            if (!sFiltroGyroAtivo || fabsf(novoAngulo - anguloSpikeGraus) <= 30.0f || fabsf(novoAngulo - sUltimoAnguloBruto) <= 5.0f) {
+                anguloSpikeGraus = novoAngulo;
+                sFiltroGyroAtivo = true;
+            }
+            sUltimoAnguloBruto = novoAngulo;
         }
     }
 }
@@ -407,8 +445,9 @@ float BaseFuncoes::calcularPassoRampa_(float atual, float alvo) {
 
     // Converte a taxa definida por 100 ms para o incremento proporcional ao ciclo atual de kIntervaloRampaMs.
     float escala = static_cast<float>(kIntervaloRampaMs) / 100.0f;
-    float passoAcel = passoAcelPwm_ * escala;
-    float passoFreio = passoFreioPwm_ * escala;
+    bool isGiro = (modoAtual_ == ModoTracao::Turn);
+    float passoAcel = (isGiro ? kPassoAcelTurnPwm : static_cast<float>(passoAcelPwm_)) * escala;
+    float passoFreio = (isGiro ? kPassoFreioTurnPwm : static_cast<float>(passoFreioPwm_)) * escala;
 
     // Desacelera suavemente até zero antes de inverter a polaridade para evitar trancos na ponte H BTS7960.
     if (atual > 0.0f && alvo < 0.0f) return max(0.0f, atual - passoFreio);
@@ -420,7 +459,7 @@ float BaseFuncoes::calcularPassoRampa_(float atual, float alvo) {
         return max(alvo, -static_cast<float>(kPwmInicialRampa));
     }
 
-    // Reduz o PWM gradualmente até zero sem corte brusco final para evitar travamento regenerativo da BTS7960.
+    // Reduz o PWM acompanhando a desaceleração sem travar a curva de aproximação.
     if (fabsf(alvo) < fabsf(atual)) {
         if (atual > 0.0f) return max(alvo, atual - passoFreio);
         return min(alvo, atual + passoFreio);
@@ -447,8 +486,8 @@ void BaseFuncoes::atualizarCinematica() {
             return;
         }
 
-        // Mantém piso mínimo de kPwmMinBase para vencer o atrito estático dos roletes mecanum perto do ângulo final.
-        int pwm = constrain(static_cast<int>(abs(erroGraus) * 2.5f), kPwmMinBase, velAlvo_);
+        // Gira na velocidade máxima até ~35° do alvo, desacelera até kPwmMinBase e trava na posição.
+        int pwm = constrain(static_cast<int>(abs(erroGraus) * 2.6f), kPwmMinBase, velAlvo_);
         if (erroGraus < 0) pwm = -pwm;
         definirAlvoMecanum_(pwm, -pwm, pwm, -pwm);
     } else if (modoAtual_ == ModoTracao::MovGirando) {
@@ -505,20 +544,61 @@ void BaseFuncoes::atualizarCinematica() {
         interrupts();
 
         long erroTicks = abs(static_cast<long>(alvoTicks_)) - abs(atualM1 - inicioM1_);
-        // Encerra o deslocamento 5 ticks (~3 mm) antes do fim para compensar o deslizamento residual das rodas.
-        if (erroTicks <= 5) {
-            pararBrusco();
+        // Inicia a rampa final para zero ~7 mm (12 ticks) antes do alvo para parar sem tranco na estrutura.
+        if (erroTicks <= 12) {
+            pararBase();
             return;
         }
 
-        int pwm = constrain(static_cast<int>(erroTicks * 1.5f), kPwmMinBase, velAlvo_);
+        // Desacelera progressivamente com kGanhoDesacelLinear até kPwmMinBase antes da rampa final de parada.
+        int pwm = constrain(static_cast<int>(erroTicks * kGanhoDesacelLinear), kPwmMinBase, velAlvo_);
         if (alvoTicks_ < 0) pwm = -pwm;
 
-        // Mantém um par diagonal parado no movimento oblíquo porque os roletes a 45° geram resultante diagonal.
-        if (modoAtual_ == ModoTracao::Run) definirAlvoMecanum_(pwm, pwm, pwm, pwm);
-        else if (modoAtual_ == ModoTracao::Strafe) definirAlvoMecanum_(pwm, -pwm, -pwm, pwm);
-        else if (modoAtual_ == ModoTracao::DiagonalDir) definirAlvoMecanum_(pwm, 0, 0, pwm);
-        else if (modoAtual_ == ModoTracao::DiagonalEsq) definirAlvoMecanum_(0, pwm, pwm, 0);
+        unsigned long agoraRumo = millis();
+        float dtRumo = (sUltimoCalculoRumoMs > 0) ? min((agoraRumo - sUltimoCalculoRumoMs) / 1000.0f, 0.1f) : 0.02f;
+        sUltimoCalculoRumoMs = agoraRumo;
+
+        // Controle PI de rumo via giroscópio: Kp corrige desvios rápidos e Ki elimina a tendência contínua para um lado.
+        float erroRumo = sRumoAlvoLinear - getGyroRelativo();
+        if (fabsf(erroRumo) > 0.3f) {
+            sIntegralRumoLinear = constrain(
+                sIntegralRumoLinear + (erroRumo * kKiRumoLinear * dtRumo),
+                -kMaxIntegralRumoPwm,
+                kMaxIntegralRumoPwm
+            );
+        }
+        int corr = constrain(
+            static_cast<int>(roundf((erroRumo * kKpRumoLinear) + sIntegralRumoLinear)),
+            -kMaxCorrecaoRumoPwm,
+            kMaxCorrecaoRumoPwm
+        );
+
+        int fl = 0, fr = 0, rl = 0, rr = 0;
+        if (modoAtual_ == ModoTracao::Run) {
+            fl = pwm + corr;
+            fr = pwm - corr;
+            rl = pwm + corr;
+            rr = pwm - corr;
+        } else if (modoAtual_ == ModoTracao::Strafe) {
+            fl = pwm + corr;
+            fr = -pwm - corr;
+            rl = -pwm + corr;
+            rr = pwm - corr;
+        } else if (modoAtual_ == ModoTracao::DiagonalDir) {
+            // Mantém o par diagonal secundário parado porque os roletes a 45° geram resultante diagonal.
+            fl = pwm + corr;
+            rr = pwm - corr;
+        } else if (modoAtual_ == ModoTracao::DiagonalEsq) {
+            fr = pwm - corr;
+            rl = pwm + corr;
+        }
+
+        definirAlvoMecanum_(
+            constrain(fl, -velAlvo_, velAlvo_),
+            constrain(fr, -velAlvo_, velAlvo_),
+            constrain(rl, -velAlvo_, velAlvo_),
+            constrain(rr, -velAlvo_, velAlvo_)
+        );
     }
 
     if (modoAtual_ == ModoTracao::Parado) return;

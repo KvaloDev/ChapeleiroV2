@@ -13,6 +13,12 @@ constexpr uint8_t kChOmbroDirR = 10;
 constexpr uint8_t kChOmbroDirL = 11;
 constexpr uint32_t kFreqPwmOmbroHz = 1000;
 constexpr uint8_t kResPwmOmbroBits = 8;
+
+// Calibração medida fisicamente no robô: ~340 ticks em 90 graus (3.78 ticks/grau).
+constexpr float kTicksPorGrauCalibrado = 3.78f;
+constexpr long kToleranciaTicksOmbro = 5;
+constexpr float kKpOmbro = 3.5f;
+
 bool pwmOmbrosConfigurado = false;
 
 void garantirPwmOmbrosIsolado() {
@@ -93,7 +99,7 @@ void BracosFuncoes::pararOmbros() {
 
 void BracosFuncoes::moverOmbroEsq(float graus, int velocidade) {
     float seguro = limitarAngulo_(graus, kOmbroMinGraus, kOmbroMaxGraus, "OmbroEsq");
-    alvoTicksEsq_ = static_cast<long>(seguro * kTicksPorGrauOmbro);
+    alvoTicksEsq_ = lroundf(seguro * kTicksPorGrauCalibrado);
     velOmbroEsq_ = constrain(velocidade, kPwmMinOmbro, kPwmMax);
     isManualOmbroAtivo_ = false;
     isOmbroEsqAtivo_ = true;
@@ -101,7 +107,7 @@ void BracosFuncoes::moverOmbroEsq(float graus, int velocidade) {
 
 void BracosFuncoes::moverOmbroDir(float graus, int velocidade) {
     float seguro = limitarAngulo_(graus, kOmbroMinGraus, kOmbroMaxGraus, "OmbroDir");
-    alvoTicksDir_ = static_cast<long>(seguro * kTicksPorGrauOmbro);
+    alvoTicksDir_ = lroundf(seguro * kTicksPorGrauCalibrado);
     velOmbroDir_ = constrain(velocidade, kPwmMinOmbro, kPwmMax);
     isManualOmbroAtivo_ = false;
     isOmbroDirAtivo_ = true;
@@ -122,7 +128,6 @@ void BracosFuncoes::moverCotoveloDir(float graus) {
 }
 
 void BracosFuncoes::processarSerial2(BracosCenas& cenas) {
-    // Drena todos os comandos pendentes na UART para evitar atraso ou disparo tardio.
     while (Serial2.available()) {
         String cmd = Serial2.readStringUntil('\n');
         cmd.trim();
@@ -172,11 +177,9 @@ void BracosFuncoes::processarSerial2(BracosCenas& cenas) {
             ultimoCmdManualBracoMs_ = millis();
             aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, -velManualOmbro_);
         } else if (cmd == "BE_STP" || cmd == "be_stp") {
-            // Para apenas o ombro esquerdo para permitir mover os dois ombros juntos pelos analógicos.
             isOmbroEsqAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, 0);
         } else if (cmd == "BD_STP" || cmd == "bd_stp") {
-            // Para apenas o ombro direito sem cortar o esquerdo.
             isOmbroDirAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, 0);
         }
@@ -193,33 +196,40 @@ void BracosFuncoes::atualizarCinematica() {
     long atualDir = ticksOmbroDir;
     interrupts();
 
-    long maxTicks = static_cast<long>(kOmbroMaxGraus * kTicksPorGrauOmbro);
+    const long minTicks = lroundf(kOmbroMinGraus * kTicksPorGrauCalibrado);
+    const long maxTicks = lroundf(kOmbroMaxGraus * kTicksPorGrauCalibrado);
 
+    // Atualiza os dois ombros em paralelo e corta o PWM assim que atingem o alvo.
     if (isOmbroEsqAtivo_) {
-        long erro = alvoTicksEsq_ - atualEsq;
-        if (abs(erro) <= 10 || atualEsq >= maxTicks) {
+        long erroEsq = alvoTicksEsq_ - atualEsq;
+        bool atingiuFimCursoEsq = (erroEsq > 0 && atualEsq >= maxTicks) || (erroEsq < 0 && atualEsq <= minTicks);
+
+        if (abs(erroEsq) <= kToleranciaTicksOmbro || atingiuFimCursoEsq) {
             isOmbroEsqAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, 0);
         } else {
-            int pwm = constrain(static_cast<int>(abs(erro) * 0.4f), kPwmMinOmbro, velOmbroEsq_);
-            aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, (erro > 0) ? pwm : -pwm);
+            int pwmMinEfetivo = min(kPwmMinOmbro, velOmbroEsq_);
+            int pwm = constrain(static_cast<int>(abs(erroEsq) * kKpOmbro), pwmMinEfetivo, velOmbroEsq_);
+            aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, (erroEsq > 0) ? pwm : -pwm);
         }
     }
 
     if (isOmbroDirAtivo_) {
-        long erro = alvoTicksDir_ - atualDir;
-        if (abs(erro) <= 10 || atualDir >= maxTicks) {
+        long erroDir = alvoTicksDir_ - atualDir;
+        bool atingiuFimCursoDir = (erroDir > 0 && atualDir >= maxTicks) || (erroDir < 0 && atualDir <= minTicks);
+
+        if (abs(erroDir) <= kToleranciaTicksOmbro || atingiuFimCursoDir) {
             isOmbroDirAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, 0);
         } else {
-            int pwm = constrain(static_cast<int>(abs(erro) * 0.4f), kPwmMinOmbro, velOmbroDir_);
-            aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, (erro > 0) ? pwm : -pwm);
+            int pwmMinEfetivo = min(kPwmMinOmbro, velOmbroDir_);
+            int pwm = constrain(static_cast<int>(abs(erroDir) * kKpOmbro), pwmMinEfetivo, velOmbroDir_);
+            aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, (erroDir > 0) ? pwm : -pwm);
         }
     }
 }
 
 void BracosFuncoes::enviarTelemetriaSerial2() {
-    // 50 Hz mantém o giroscópio atualizado sem atraso na Base para o controle de rotação.
     if (millis() - ultimoEnvioTelemetriaMs_ < 20) return;
     ultimoEnvioTelemetriaMs_ = millis();
 

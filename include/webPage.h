@@ -15,8 +15,10 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     body { font-family: 'Segoe UI', sans-serif; text-align: center; background: var(--bg); color: var(--text); margin: 0; padding: 10px; user-select: none; }
     h1 { color: var(--yellow); margin: 4px 0 10px; font-style: italic; font-weight: 900; font-size: 22px; }
     h3 { color: var(--yellow); margin: 0 0 8px; font-size: 13px; text-transform: uppercase; letter-spacing: 0.5px; }
-    .box { background: var(--card); border: 2px solid var(--yellow); border-radius: 8px; padding: 10px; margin: 8px auto; max-width: 680px; }
-    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 680px; margin: 8px auto; }
+    .box { background: var(--card); border: 2px solid var(--yellow); border-radius: 8px; padding: 10px; margin: 8px auto; max-width: 740px; }
+    .box-base { border-color: #42A5F5; }
+    .box-bracos { border-color: #CE93D8; }
+    .grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; max-width: 740px; margin: 8px auto; }
     .grid-3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; max-width: 340px; margin: 10px auto; }
     .grid-4 { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-top: 6px; }
     button { background: var(--btn); color: var(--text); border: 2px solid var(--btn); padding: 11px 8px; font-weight: bold; border-radius: 6px; cursor: pointer; touch-action: none; font-size: 13px; }
@@ -29,11 +31,14 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     .preset-card { background: var(--bg); border: 1px solid var(--btn); border-radius: 6px; padding: 6px; }
     .preset-card.ativo { border: 2px solid var(--yellow); }
     .preset-card input { width: 54px; padding: 4px; margin-top: 4px; }
-    .rec-box { width: 100%; height: 130px; background: #02050A; color: #00FF66; font-family: monospace; font-size: 12px; border: 1px solid var(--btn); padding: 8px; box-sizing: border-box; user-select: text; }
+    .rec-box { width: 100%; height: 145px; background: #02050A; color: #00FF66; font-family: monospace; font-size: 12px; border: 1px solid var(--btn); padding: 8px; box-sizing: border-box; user-select: text; }
+    .rec-box.bracos { color: #E1BEE7; border-color: #6A1B9A; }
     .btn-rec { background: var(--red); border-color: var(--red); }
     .btn-rec.ativo { background: #555; border-color: #555; }
+    .btn-rec-bracos { background: #6A1B9A; border-color: #CE93D8; color: #FFF; }
+    .btn-rec-bracos.ativo { background: #555; border-color: #555; }
     .btn-cont { background: #0277BD; border-color: #29B6F6; color: #FFF; }
-    .btn-overdub { background: #E65100; border-color: #FF9800; color: #FFF; }
+    .btn-cont-bracos { background: #4A148C; border-color: #BA68C8; color: #FFF; }
     .btn-play { background: #1B5E20; border-color: var(--green); color: var(--green); }
     .btn-add { background: #283593; border-color: #7986CB; color: #FFF; }
     .btn-modo-base { background: #0D47A1; border-color: #42A5F5; color: #FFF; }
@@ -51,16 +56,38 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     .gamepad-legenda { font-size: 10px; color: #90CAF9; margin-top: 4px; line-height: 1.35; }
     .visor-digitado { display: none; margin-top: 6px; padding: 5px 8px; border-radius: 4px; background: var(--yellow); color: var(--bg); font-family: monospace; font-weight: bold; font-size: 13px; }
     .rec-info { font-size: 12px; color: #CCC; margin-top: 6px; font-family: monospace; }
-    .tabela-partes { width: 100%; border-collapse: collapse; margin-top: 10px; background: var(--bg); border: 1px solid var(--btn); border-radius: 6px; overflow: hidden; }
+    .area-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; margin-bottom: 6px; }
+    .area-titulo-base { color: #90CAF9; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .area-titulo-bracos { color: #E1BEE7; font-weight: 900; font-size: 14px; text-transform: uppercase; letter-spacing: 0.5px; }
+    .tabela-partes { width: 100%; border-collapse: collapse; margin-top: 8px; background: var(--bg); border: 1px solid var(--btn); border-radius: 6px; overflow: hidden; }
     .tabela-partes th { background: #101E4A; color: var(--yellow); font-size: 12px; text-transform: uppercase; padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--btn); }
+    .tabela-partes.bracos th { background: #2A0E4A; color: #E1BEE7; border-bottom-color: #4A148C; }
     .tabela-partes td { padding: 8px 10px; border-bottom: 1px solid #13224F; vertical-align: top; }
+    .tabela-partes.bracos td { border-bottom-color: #2A1247; }
     .parte-topo { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 6px; flex-wrap: wrap; }
     .parte-titulo { font-weight: bold; color: var(--yellow); font-size: 13px; }
+    .parte-badge { font-family: monospace; font-size: 10px; padding: 2px 6px; border-radius: 4px; margin-left: 6px; font-weight: bold; }
+    .badge-base { background: #0D47A1; color: #90CAF9; border: 1px solid #42A5F5; }
+    .badge-bracos { background: #4A148C; color: #E1BEE7; border: 1px solid #CE93D8; }
     .parte-meta { font-family: monospace; font-size: 11px; color: #90CAF9; margin-left: 6px; }
     .parte-acoes { display: flex; gap: 6px; }
     .parte-code { width: 100%; min-height: 82px; background: #02050A; color: #00FF66; font-family: monospace; font-size: 12px; border: 1px solid #1E3270; border-radius: 4px; padding: 6px; box-sizing: border-box; resize: vertical; user-select: text; }
+    .parte-code.bracos { color: #E1BEE7; border-color: #4A148C; }
     .parte-code:focus { outline: none; border-color: var(--yellow); }
     .vazio-partes { text-align: center; color: #888; font-size: 12px; padding: 14px; }
+    .saida-header { font-size: 11px; color: #AAA; display: flex; justify-content: space-between; align-items: center; gap: 6px; flex-wrap: wrap; margin: 10px 0 4px; }
+    .atalhos-pills { display: flex; flex-wrap: wrap; gap: 5px; justify-content: center; margin-bottom: 8px; }
+    .atalho-pill { padding: 6px 10px; font-size: 12px; font-family: monospace; background: var(--bg); border: 1px solid var(--btn); color: #E2E8F0; }
+    .atalho-pill.ativo { background: var(--yellow); color: var(--bg); border-color: var(--yellow); }
+    .atalho-info { background: #02050A; border: 1px solid var(--btn); border-left: 3px solid var(--yellow); border-radius: 5px; padding: 8px 10px; text-align: left; margin-bottom: 8px; }
+    .atalho-assinatura { font-family: monospace; color: var(--green); font-size: 13px; font-weight: bold; display: block; margin-bottom: 4px; }
+    .atalho-desc { font-size: 12px; color: #DDD; line-height: 1.4; }
+    .atalho-desc b { color: var(--yellow); }
+    .atalho-campos { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; align-items: flex-end; margin-bottom: 8px; }
+    .atalho-campo { display: flex; flex-direction: column; align-items: center; gap: 3px; }
+    .atalho-campo label { font-size: 11px; color: #90CAF9; font-family: monospace; }
+    .atalho-campo input { width: 92px; }
+    .atalho-acoes { display: flex; gap: 6px; justify-content: center; flex-wrap: wrap; }
   </style>
 </head>
 <body oncontextmenu="return false;">
@@ -95,7 +122,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       </div>
       <div style="margin-top:8px; padding-top:8px; border-top:1px solid var(--btn); display:flex; gap:6px; justify-content:center; align-items:center; flex-wrap:wrap;">
         <span style="font-size:12px;">Canal BLE:</span>
-        <input type="number" id="canalTea" value="10" min="0" max="255" style="width:52px; padding:4px;">
+        <input type="number" id="canalTea" value="120" min="0" max="255" style="width:52px; padding:4px;">
         <button class="btn-cha btn-sm" onclick="enviarCodigoCha()">☕ ENVIAR 2565 (CHÁ)</button>
       </div>
     </div>
@@ -149,6 +176,22 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
   <div class="box" style="padding:6px 10px;">
     <div style="font-size:11px; color:#AAA;">MEDIDAS SALVAS (clique para copiar):</div>
     <div class="medida-bar" id="barraMedidas"></div>
+  </div>
+
+  <div class="box">
+    <h3>Atalhos de Funções (Execução Rápida &amp; C++)</h3>
+    <div class="atalhos-pills" id="atalhosPills"></div>
+    <div class="atalho-info">
+      <code class="atalho-assinatura" id="atalhoAssinatura"></code>
+      <div class="atalho-desc" id="atalhoDesc"></div>
+    </div>
+    <div class="atalho-campos" id="atalhoCampos"></div>
+    <div class="atalho-acoes">
+      <button class="btn-play" onclick="executarAtalhoSelecionado()">▶ EXECUTAR NO ROBÔ</button>
+      <button id="btnCopiarCppAtalho" onclick="copiarCppAtalho()" style="border-color:var(--yellow); color:var(--yellow);">📋 COPIAR C++</button>
+      <button class="btn-sm" onclick="sendCmd('zero_gyro')" style="border-color:var(--green); color:var(--green);">zerarGyro()</button>
+      <button class="btn-sm" onclick="sendCmd('stop_base')" style="border-color:var(--red); color:#FF8A80;">pararBase()</button>
+    </div>
   </div>
 
   <div class="grid-3">
@@ -212,44 +255,91 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     ENCODERS: M1:<span class="telem" id="enc1">0</span> | M2:<span class="telem" id="enc2">0</span> | M3:<span class="telem" id="enc3">0</span> | M4:<span class="telem" id="enc4">0</span>
   </div>
 
+  <!-- BARRA GERAL DE GRAVAÇÃO E TESTE SINCRONIZADO -->
   <div class="box" style="text-align:left;">
     <div style="display:flex; gap:6px; flex-wrap:wrap; align-items:center;">
-      <button id="btnRec" class="btn-rec" onclick="toggleRec('novo')">🔴 GRAVAR DO ZERO</button>
-      <button id="btnContinuar" class="btn-cont" onclick="toggleRec('continuar')" disabled>⏭ CONTINUAR GRAVANDO</button>
-      <button id="btnOverdub" class="btn-overdub" onclick="toggleRec('overdub')" disabled>➕ GRAVAR POR CIMA</button>
-      <button id="btnNovaParte" class="btn-add" onclick="adicionarParteManual()">➕ COLAR / NOVA PARTE</button>
-      <button class="btn-play" onclick="testarAPartirDaParte(0)">▶ TESTAR TUDO</button>
-      <button onclick="limparRoteiro()">LIMPAR TUDO</button>
-      <label style="font-size:12px; color:#CCC; cursor:pointer;">
-        <input type="checkbox" id="chkReplayOverdub" checked> Reproduzir ao sobrepor
-      </label>
+      <button id="btnRecBaseNovo" class="btn-rec" onclick="toggleRec('base_novo')">🔴 GRAVAR BASE (0s)</button>
+      <button id="btnRecBaseCont" class="btn-cont" onclick="toggleRec('base_continuar')" disabled>⏭ CONTINUAR BASE</button>
+      <button id="btnRecBracosNovo" class="btn-rec-bracos" onclick="toggleRec('bracos_novo')">🦾 GRAVAR BRAÇOS (0s)</button>
+      <button id="btnRecBracosCont" class="btn-cont-bracos" onclick="toggleRec('bracos_continuar')" disabled>⏭ CONTINUAR BRAÇOS</button>
+      <button class="btn-play" onclick="testarTudoSincronizado()">▶ TESTAR TUDO (BASE + BRAÇOS)</button>
+      <button onclick="cancelarReplay()">⏹ PARAR TESTE</button>
     </div>
-    <div id="recInfo" class="rec-info">⏱ Duração total: 0.0s | Partes: 0 | Passos: 0 | 💾 Auto-save ativo</div>
+    <div style="margin-top:6px; display:flex; gap:12px; flex-wrap:wrap; align-items:center;">
+      <label style="font-size:12px; color:#CCC; cursor:pointer;">
+        <input type="checkbox" id="chkReplayBaseAoGravarBracos"> Reproduzir Base ao gravar Braços
+      </label>
+      <span id="recStatusGeral" style="font-size:12px; font-family:monospace; color:#90CAF9;">💾 Auto-save ativo (Base e Braços separados)</span>
+    </div>
+  </div>
+
+  <!-- ÁREA 1: PARTES DA BASE -->
+  <div class="box box-base" style="text-align:left;">
+    <div class="area-topo">
+      <span class="area-titulo-base">🔵 ÁREA DA BASE (BaseCenas)</span>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn-add btn-sm" onclick="adicionarParteManual('base')">➕ NOVA PARTE BASE</button>
+        <button class="btn-play btn-sm" onclick="testarAPartirDaParte('base', 0)">▶ TESTAR BASE</button>
+        <button class="btn-sm" onclick="limparCategoria('base')">🗑 LIMPAR BASE</button>
+      </div>
+    </div>
+    <div id="recInfoBase" class="rec-info">⏱ Duração Base: 0.0s | Partes: 0 | Passos: 0</div>
 
     <table class="tabela-partes">
       <thead>
         <tr>
-          <th>Partes (edite o código ou cole uma parte salva)</th>
+          <th>PARTES DA BASE (EDITE O CÓDIGO OU COLE COMANDOS DA BASE)</th>
         </tr>
       </thead>
-      <tbody id="corpoTabelaPartes">
-        <tr><td class="vazio-partes">Nenhuma parte gravada. Clique em "GRAVAR DO ZERO" ou "COLAR / NOVA PARTE".</td></tr>
+      <tbody id="corpoTabelaPartesBase">
+        <tr><td class="vazio-partes">Nenhuma parte da Base gravada. Clique em "GRAVAR BASE (0s)" ou "NOVA PARTE BASE".</td></tr>
       </tbody>
     </table>
 
-    <div style="margin-top:10px; font-size:11px; color:#AAA; display:flex; justify-content:space-between; align-items:center;">
-      <span>CÓDIGO COMPLETO UNIFICADO (pronto para colar em BaseCenas::atualizarCenas):</span>
-      <button class="btn-sm" onclick="copiarCodigoCompleto()">📋 COPIAR TUDO</button>
+    <div class="saida-header">
+      <span style="color:#90CAF9; font-weight:bold;">CÓDIGO COMPLETO DA BASE (BaseCenas::atualizarCenas):</span>
+      <button id="btnCopiarBase" class="btn-sm" onclick="copiarCodigoCaixa('codeOutBase', 'btnCopiarBase')">📋 COPIAR BASE</button>
     </div>
-    <textarea id="codeOut" class="rec-box" style="margin-top:4px;" readonly></textarea>
+    <textarea id="codeOutBase" class="rec-box" readonly></textarea>
+  </div>
+
+  <!-- ÁREA 2: PARTES DOS BRAÇOS -->
+  <div class="box box-bracos" style="text-align:left;">
+    <div class="area-topo">
+      <span class="area-titulo-bracos">🟣 ÁREA DOS BRAÇOS (BracosCenas)</span>
+      <div style="display:flex; gap:6px; flex-wrap:wrap;">
+        <button class="btn-add btn-sm" onclick="adicionarParteManual('bracos')">➕ NOVA PARTE BRAÇOS</button>
+        <button class="btn-play btn-sm" onclick="testarAPartirDaParte('bracos', 0)">▶ TESTAR BRAÇOS</button>
+        <button class="btn-sm" onclick="limparCategoria('bracos')">🗑 LIMPAR BRAÇOS</button>
+      </div>
+    </div>
+    <div id="recInfoBracos" class="rec-info">⏱ Duração Braços: 0.0s | Partes: 0 | Passos: 0</div>
+
+    <table class="tabela-partes bracos">
+      <thead>
+        <tr>
+          <th>PARTES DOS BRAÇOS (EDITE O CÓDIGO OU COLE COMANDOS DOS BRAÇOS)</th>
+        </tr>
+      </thead>
+      <tbody id="corpoTabelaPartesBracos">
+        <tr><td class="vazio-partes">Nenhuma parte dos Braços gravada. Clique em "GRAVAR BRAÇOS (0s)" ou "NOVA PARTE BRAÇOS".</td></tr>
+      </tbody>
+    </table>
+
+    <div class="saida-header">
+      <span style="color:#E1BEE7; font-weight:bold;">CÓDIGO COMPLETO DOS BRAÇOS (BracosCenas::atualizarCenas):</span>
+      <button id="btnCopiarBracos" class="btn-sm" onclick="copiarCodigoCaixa('codeOutBracos', 'btnCopiarBracos')">📋 COPIAR BRAÇOS</button>
+    </div>
+    <textarea id="codeOutBracos" class="rec-box bracos" readonly></textarea>
   </div>
 
   <script>
     let ws = null;
     let timerReconexaoWs = null;
-    const kStoragePartesKey = "chapeleiro_v2_partes_v1";
+    const kStorageV1Key = "chapeleiro_v2_partes_v1";
+    const kStorageV2Key = "chapeleiro_v2_partes_v2";
     const kTicksPorMm = 1.65;
-    const kTicksPorGrauOmbro = 26.49;
+    const kTicksPorGrauOmbro = 3.78;
     const kDegrausCotovelo = [0, 60, 120];
 
     let ticks = [0, 0, 0, 0];
@@ -258,8 +348,10 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     let gyroAtual = 0;
     let fodAtivo = true;
 
-    // Estado da gravação da base e de cada ombro de forma independente (permite mover ambos juntos no overdub).
-    let gravando = false, inicioRec = 0, m1Start = 0, m2Start = 0, m3Start = 0, m4Start = 0, gyroStart = 0, cmdAtivo = "";
+    // Estado da gravação independente por área ("base" ou "bracos").
+    let gravando = false;
+    let modoGravacaoAtual = "";
+    let inicioRec = 0, m1Start = 0, m2Start = 0, m3Start = 0, m4Start = 0, gyroStart = 0, cmdAtivo = "";
     let movX = 0, movY = 0, movRot = 0, movPicoMag = 0;
     const estadoGravOmbro = {
       e: { ativo: false, ticksStart: 0, inicioTempo: 0 },
@@ -270,9 +362,12 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     let segAtualId = 0;
     let segInicioTempo = 0;
 
-    let partesGravadas = [];
-    let indiceParteAtiva = -1;
-    let duracaoTotalGravada = 0;
+    let partesBase = [];
+    let partesBracos = [];
+    let indiceParteBaseAtiva = -1;
+    let indiceParteBracosAtiva = -1;
+    let duracaoBaseMs = 0;
+    let duracaoBracosMs = 0;
     let timersReplay = [];
 
     let medindo = false;
@@ -299,6 +394,196 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     let modoGiroDigitado = null;
     let bufferGrausDigitados = "";
     let giroDigitadoCancelado = false;
+
+    function isAcaoBraco(acao) {
+      return /\b(moverOmbroEsq|moverOmbroDir|moverCotoveloEsq|moverCotoveloDir)\b/.test(acao || "");
+    }
+
+    function obterListaPartes(categoria) {
+      return categoria === "bracos" ? partesBracos : partesBase;
+    }
+
+    // Definição dos atalhos de funções com descrição dos parâmetros e geração de C++.
+    const FUNCOES_ATALHO = {
+      run: {
+        nome: "run",
+        assinatura: "funcoes_.run(distanciaMm, velocidade)",
+        descricao: "Anda em linha reta mantendo o ângulo atual travado pelo giroscópio.<br>• <b>distanciaMm:</b> distância em mm (positivo = frente, negativo = ré)<br>• <b>velocidade:</b> força PWM (28 a 255)",
+        campos: [
+          { id: "p1", label: "distanciaMm", valor: 500, step: "10" },
+          { id: "p2", label: "velocidade (28-255)", valor: 90, step: "5" }
+        ],
+        cmd: (v) => `run:${v[0]},${Math.round(v[1])}`,
+        cpp: (v) => `funcoes_.run(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
+      },
+      turn: {
+        nome: "turn",
+        assinatura: "funcoes_.turn(graus, velocidade)",
+        descricao: "Gira no próprio eixo a partir da orientação onde o robô está.<br>• <b>graus:</b> ângulo relativo (+ direita/horário, - esquerda/anti-horário)<br>• <b>velocidade:</b> força PWM (28 a 255)",
+        campos: [
+          { id: "p1", label: "graus (+dir / -esq)", valor: 90, step: "5" },
+          { id: "p2", label: "velocidade (28-255)", valor: 100, step: "5" }
+        ],
+        cmd: (v) => `turn:${v[0]},${Math.round(v[1])}`,
+        cpp: (v) => `funcoes_.turn(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
+      },
+      turnTo: {
+        nome: "turnTo",
+        assinatura: "funcoes_.turnTo(anguloAlvo, velocidade)",
+        descricao: "Aponta a frente do robô para um ângulo fixo da arena (relativo ao 0° inicial) pelo menor caminho.<br>• <b>anguloAlvo:</b> 0° frente, 90° direita, -90° esquerda, 180° costas<br>• <b>velocidade:</b> força PWM (28 a 255)",
+        campos: [
+          { id: "p1", label: "anguloAlvo (graus)", valor: 0, step: "5" },
+          { id: "p2", label: "velocidade (28-255)", valor: 100, step: "5" }
+        ],
+        cmd: (v) => `turn_to:${v[0]},${Math.round(v[1])}`,
+        cpp: (v) => `funcoes_.turnTo(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
+      },
+      strafe: {
+        nome: "strafe",
+        assinatura: "funcoes_.strafe(distanciaMm, velocidade)",
+        descricao: "Desloca lateralmente (caranguejo) mantendo a frente alinhada no giroscópio.<br>• <b>distanciaMm:</b> distância em mm (+ direita, - esquerda)<br>• <b>velocidade:</b> força PWM (28 a 255)",
+        campos: [
+          { id: "p1", label: "distanciaMm (+dir/-esq)", valor: 300, step: "10" },
+          { id: "p2", label: "velocidade (28-255)", valor: 100, step: "5" }
+        ],
+        cmd: (v) => `strafe:${v[0]},${Math.round(v[1])}`,
+        cpp: (v) => `funcoes_.strafe(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
+      },
+      diagonal: {
+        nome: "diagonal",
+        assinatura: "funcoes_.diagonal(distanciaMm, isDireita, velocidade)",
+        descricao: "Move em diagonal a 45°.<br>• <b>distanciaMm:</b> distância em mm (+ frente, - ré)<br>• <b>isDireita:</b> 1 = direita (true), 0 = esquerda (false)<br>• <b>velocidade:</b> força PWM (28 a 255)",
+        campos: [
+          { id: "p1", label: "distanciaMm", valor: 400, step: "10" },
+          { id: "p2", label: "isDireita (1 ou 0)", valor: 1, step: "1" },
+          { id: "p3", label: "velocidade (28-255)", valor: 95, step: "5" }
+        ],
+        cmd: (v) => `diag:${v[0]},${Math.round(v[1]) ? 1 : 0},${Math.round(v[2])}`,
+        cpp: (v) => `funcoes_.diagonal(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1]) ? "true" : "false"}, ${Math.round(v[2])});`
+      },
+      ombroEsq: {
+        nome: "moverOmbroEsq",
+        assinatura: "funcoes_.moverOmbroEsq(graus, velocidade)",
+        descricao: "Leva o motor DC do ombro esquerdo até o ângulo alvo (BracosCenas).<br>• <b>graus:</b> 0° (baixado) a 90° (levantado)<br>• <b>velocidade:</b> força PWM (50 a 255)",
+        campos: [
+          { id: "p1", label: "graus (0 a 90)", valor: 45, step: "5" },
+          { id: "p2", label: "velocidade (50-255)", valor: 130, step: "10" }
+        ],
+        cmd: (v) => `OMB_POS_E:${Number(v[0]).toFixed(1)},${Math.round(v[1])}`,
+        cpp: (v) => `funcoes_.moverOmbroEsq(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
+      },
+      ombroDir: {
+        nome: "moverOmbroDir",
+        assinatura: "funcoes_.moverOmbroDir(graus, velocidade)",
+        descricao: "Leva o motor DC do ombro direito até o ângulo alvo (BracosCenas).<br>• <b>graus:</b> 0° (baixado) a 90° (levantado)<br>• <b>velocidade:</b> força PWM (50 a 255)",
+        campos: [
+          { id: "p1", label: "graus (0 a 90)", valor: 45, step: "5" },
+          { id: "p2", label: "velocidade (50-255)", valor: 130, step: "10" }
+        ],
+        cmd: (v) => `OMB_POS_D:${Number(v[0]).toFixed(1)},${Math.round(v[1])}`,
+        cpp: (v) => `funcoes_.moverOmbroDir(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
+      },
+      cotoveloEsq: {
+        nome: "moverCotoveloEsq",
+        assinatura: "funcoes_.moverCotoveloEsq(graus)",
+        descricao: "Posiciona o servo do cotovelo esquerdo (BracosCenas).<br>• <b>graus:</b> 0° (fechado/recolhido) a 120° (aberto/estendido)",
+        campos: [
+          { id: "p1", label: "graus (0 a 120)", valor: 60, step: "5" }
+        ],
+        cmd: (v) => `srv_pos_e:${Math.round(v[0])}`,
+        cpp: (v) => `funcoes_.moverCotoveloEsq(${Number(v[0]).toFixed(1)}f);`
+      },
+      cotoveloDir: {
+        nome: "moverCotoveloDir",
+        assinatura: "funcoes_.moverCotoveloDir(graus)",
+        descricao: "Posiciona o servo do cotovelo direito (BracosCenas).<br>• <b>graus:</b> 0° (fechado/recolhido) a 120° (aberto/estendido)",
+        campos: [
+          { id: "p1", label: "graus (0 a 120)", valor: 60, step: "5" }
+        ],
+        cmd: (v) => `srv_pos_d:${Math.round(v[0])}`,
+        cpp: (v) => `funcoes_.moverCotoveloDir(${Number(v[0]).toFixed(1)}f);`
+      },
+      cenario: {
+        nome: "enviarCodigoCenario",
+        assinatura: "funcoes_.enviarCodigoCenario(codigo, canal)",
+        descricao: "Dispara pacote BLE pelo rádio dos braços para o SPIKE externo.<br>• <b>codigo:</b> 2565 (Hora do Chá)<br>• <b>canal:</b> 0 a 255 (padrão 120)",
+        campos: [
+          { id: "p1", label: "codigo", valor: 2565, step: "1" },
+          { id: "p2", label: "canal (0-255)", valor: 120, step: "1" }
+        ],
+        cmd: (v) => `ble_tx:${Math.round(v[0])},${Math.round(v[1])}`,
+        cpp: (v) => `funcoes_.enviarCodigoCenario(${Math.round(v[0])}, ${Math.round(v[1])});`
+      }
+    };
+
+    let atalhoSelecionadoKey = "run";
+
+    function selecionarAtalhoFuncao(key) {
+      atalhoSelecionadoKey = key;
+      const f = FUNCOES_ATALHO[key];
+      if (!f) return;
+
+      document.getElementById("atalhoAssinatura").innerText = f.assinatura;
+      document.getElementById("atalhoDesc").innerHTML = f.descricao;
+
+      document.querySelectorAll("#atalhosPills button").forEach((btn) => {
+        btn.classList.toggle("ativo", btn.dataset.key === key);
+      });
+
+      const cont = document.getElementById("atalhoCampos");
+      cont.innerHTML = "";
+      f.campos.forEach((c) => {
+        const div = document.createElement("div");
+        div.className = "atalho-campo";
+        div.innerHTML = `<label for="atalhoIn_${c.id}">${c.label}</label>
+          <input type="number" id="atalhoIn_${c.id}" value="${c.valor}" step="${c.step}"
+            onkeydown="if(event.key==='Enter'){event.preventDefault();executarAtalhoSelecionado();}">`;
+        cont.appendChild(div);
+      });
+    }
+
+    function lerValoresAtalho() {
+      const f = FUNCOES_ATALHO[atalhoSelecionadoKey];
+      return f.campos.map((c) => {
+        const el = document.getElementById(`atalhoIn_${c.id}`);
+        return el ? (parseFloat(el.value) || 0) : 0;
+      });
+    }
+
+    function executarAtalhoSelecionado() {
+      const f = FUNCOES_ATALHO[atalhoSelecionadoKey];
+      if (!f) return;
+      const vals = lerValoresAtalho();
+      sendCmd(f.cmd(vals));
+    }
+
+    function copiarCppAtalho() {
+      const f = FUNCOES_ATALHO[atalhoSelecionadoKey];
+      if (!f) return;
+      const linha = f.cpp(lerValoresAtalho());
+      navigator.clipboard?.writeText(linha);
+      const btn = document.getElementById("btnCopiarCppAtalho");
+      if (btn) {
+        btn.innerText = "✓ COPIADO!";
+        setTimeout(() => { btn.innerText = "📋 COPIAR C++"; }, 1200);
+      }
+    }
+
+    function inicializarAtalhosFuncoes() {
+      const pills = document.getElementById("atalhosPills");
+      if (!pills) return;
+      pills.innerHTML = "";
+      Object.keys(FUNCOES_ATALHO).forEach((key) => {
+        const b = document.createElement("button");
+        b.type = "button";
+        b.className = "atalho-pill";
+        b.dataset.key = key;
+        b.innerText = FUNCOES_ATALHO[key].nome;
+        b.onclick = () => selecionarAtalhoFuncao(key);
+        pills.appendChild(b);
+      });
+      selecionarAtalhoFuncao("run");
+    }
 
     function atualizarStatusWs(conectado) {
       const el = document.getElementById("wsStatus");
@@ -372,15 +657,15 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
 
     conectarWebSocket();
+    inicializarAtalhosFuncoes();
 
     function enviarCodigoCha() {
-      const canal = Math.max(0, Math.min(255, parseInt(document.getElementById("canalTea").value) || 10));
+      const canal = Math.max(0, Math.min(255, parseInt(document.getElementById("canalTea").value) || 120));
       document.getElementById("canalTea").value = canal;
       sendCmd(`ble_tx:2565,${canal}`);
     }
 
     function alternarModoControleGamepad() {
-      // Interrompe movimentos pendentes antes de trocar o mapeamento dos analógicos.
       if (modoGiroDigitado !== null) {
         modoGiroDigitado = null;
         bufferGrausDigitados = "";
@@ -429,7 +714,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     function moverDegrauCotovelo(lado, deltaPasso) {
       const inputId = (lado === "e") ? "srvE" : "srvD";
       const atual = parseInt(document.getElementById(inputId).value) || 0;
-      // Encontra o degrau [0, 60, 120] mais próximo da posição atual e avança/recua 1 degrau.
       let idx = 0;
       let menorDiff = 999;
       kDegrausCotovelo.forEach((val, i) => {
@@ -555,7 +839,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         }
 
         if (modoControleGamepad === "base") {
-          // --- MODO BASE ---
           let lx = aplicarZonaMorta(gp.axes[0] || 0);
           let ly = aplicarZonaMorta(-(gp.axes[1] || 0));
           const magL = Math.hypot(lx, ly);
@@ -607,8 +890,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
             sincronizarMovimentoManual();
           }
         } else {
-          // --- MODO BRAÇOS ---
-          // Analógico Esquerdo Y (axes[1]) controla Ombro Esquerdo; Analógico Direito Y (axes[3]) controla Ombro Direito.
           const lyBraco = aplicarZonaMorta(-(gp.axes[1] || 0), 0.22);
           const ryBraco = aplicarZonaMorta(-(gp.axes[3] || 0), 0.22);
 
@@ -634,7 +915,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
             }
           }
 
-          // LB abaixa e LT sobe o Cotovelo Esquerdo (0° - 60° - 120°).
           if (btnLB && !gpBtnAnterior.lb) {
             moverDegrauCotovelo("e", -1);
             atualizarStatusGamepad(gp, `LB: Cotov. Esq ${document.getElementById("srvE").value}°`);
@@ -644,7 +924,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
             atualizarStatusGamepad(gp, `LT: Cotov. Esq ${document.getElementById("srvE").value}°`);
           }
 
-          // RB abaixa e RT sobe o Cotovelo Direito (0° - 60° - 120°).
           if (btnRB && !gpBtnAnterior.rb) {
             moverDegrauCotovelo("d", -1);
             atualizarStatusGamepad(gp, `RB: Cotov. Dir ${document.getElementById("srvD").value}°`);
@@ -666,20 +945,42 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
     requestAnimationFrame(lerGamepadLoop);
 
+    function obterParteBracosParaGravacao() {
+      if (indiceParteBracosAtiva >= 0 && partesBracos[indiceParteBracosAtiva]) {
+        return partesBracos[indiceParteBracosAtiva];
+      }
+      partesBracos.push({
+        inicioMs: 0,
+        fimMs: 0,
+        passos: [],
+        eventos: [],
+        editadoManualmente: false
+      });
+      indiceParteBracosAtiva = partesBracos.length - 1;
+      return partesBracos[indiceParteBracosAtiva];
+    }
+
+    function obterParteBaseParaGravacao() {
+      if (indiceParteBaseAtiva >= 0 && partesBase[indiceParteBaseAtiva]) {
+        return partesBase[indiceParteBaseAtiva];
+      }
+      return null;
+    }
+
     function fecharSegmentoOmbro(lado, tempo) {
       const est = estadoGravOmbro[lado];
-      if (!est || !est.ativo || indiceParteAtiva < 0) return;
+      if (!est || !est.ativo || !gravando) return;
 
       const ticksFim = (lado === "e") ? ticksOmbroEsq : ticksOmbroDir;
       const graus = Math.max(0.0, Math.min(90.0, ticksFim / kTicksPorGrauOmbro)).toFixed(1);
       const velBraco = parseInt(document.getElementById("forcaBraco").value) || 130;
-      const parte = partesGravadas[indiceParteAtiva];
+      const parte = obterParteBracosParaGravacao();
 
       if (lado === "e") {
-        registrarPassoNaParte(parte, est.inicioTempo, `funcoes_.moverOmbroEsq(${graus}f, ${velBraco});`, tempo);
+        registrarPassoNaParte("bracos", parte, est.inicioTempo, `funcoes_.moverOmbroEsq(${graus}f, ${velBraco});`, tempo);
         parte.eventos.push({ tempo: est.inicioTempo, tipo: "raw", cmd: `OMB_POS_E:${graus},${velBraco}` });
       } else {
-        registrarPassoNaParte(parte, est.inicioTempo, `funcoes_.moverOmbroDir(${graus}f, ${velBraco});`, tempo);
+        registrarPassoNaParte("bracos", parte, est.inicioTempo, `funcoes_.moverOmbroDir(${graus}f, ${velBraco});`, tempo);
         parte.eventos.push({ tempo: est.inicioTempo, tipo: "raw", cmd: `OMB_POS_D:${graus},${velBraco}` });
       }
       est.ativo = false;
@@ -690,7 +991,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       const cmd = `b${lado}_${dir}`;
       comandoOmbroAtivo[lado] = cmd;
 
-      if (gravando && indiceParteAtiva >= 0) {
+      if (gravando) {
         const est = estadoGravOmbro[lado];
         est.ativo = true;
         est.ticksStart = (lado === "e") ? ticksOmbroEsq : ticksOmbroDir;
@@ -850,22 +1151,57 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
 
     function salvarPartesNoNavegador() {
       try {
-        localStorage.setItem(kStoragePartesKey, JSON.stringify(partesGravadas));
+        localStorage.setItem(kStorageV2Key, JSON.stringify({
+          base: partesBase,
+          bracos: partesBracos
+        }));
       } catch (e) {}
     }
 
     function carregarPartesDoNavegador() {
       try {
-        const bruto = localStorage.getItem(kStoragePartesKey);
-        if (!bruto) return;
-        const lidas = JSON.parse(bruto);
-        if (Array.isArray(lidas)) {
-          partesGravadas = lidas;
-          recalcularLinhaDoTempo();
-          renderizarTabelaPartes();
-          atualizarTextoRoteiroCompleto();
-          atualizarBotoesGravacao();
+        const brutoV2 = localStorage.getItem(kStorageV2Key);
+        if (brutoV2) {
+          const dados = JSON.parse(brutoV2);
+          partesBase = Array.isArray(dados.base) ? dados.base : [];
+          partesBracos = Array.isArray(dados.bracos) ? dados.bracos : [];
+        } else {
+          const brutoV1 = localStorage.getItem(kStorageV1Key);
+          if (brutoV1) {
+            const antigas = JSON.parse(brutoV1);
+            if (Array.isArray(antigas)) {
+              antigas.forEach((p) => {
+                const passos = p.passos || [];
+                const pBase = passos.filter((x) => !isAcaoBraco(x.acao));
+                const pBracos = passos.filter((x) => isAcaoBraco(x.acao));
+                if (pBase.length > 0 || pBracos.length === 0) {
+                  partesBase.push({
+                    inicioMs: pBase.length ? pBase[0].tempo : (p.inicioMs || 0),
+                    fimMs: pBase.length ? pBase[pBase.length - 1].tempo : (p.fimMs || 0),
+                    passos: pBase,
+                    eventos: (p.eventos || []).filter((e) => !/^OMB_POS_|^srv_pos_/.test(e.cmd || "")),
+                    editadoManualmente: !!p.editadoManualmente
+                  });
+                }
+                if (pBracos.length > 0) {
+                  partesBracos.push({
+                    inicioMs: pBracos[0].tempo,
+                    fimMs: pBracos[pBracos.length - 1].tempo,
+                    passos: pBracos,
+                    eventos: (p.eventos || []).filter((e) => /^OMB_POS_|^srv_pos_/.test(e.cmd || "")),
+                    editadoManualmente: !!p.editadoManualmente
+                  });
+                }
+              });
+              salvarPartesNoNavegador();
+            }
+          }
         }
+        recalcularLinhasDoTempo();
+        renderizarTabelaCategoria("base");
+        renderizarTabelaCategoria("bracos");
+        atualizarTextosRoteirosCompletos();
+        atualizarBotoesGravacao();
       } catch (e) {}
     }
 
@@ -876,8 +1212,22 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       ).join("\n");
     }
 
+    function normalizarChamadaCpp(linha) {
+      let l = linha.replace(/\/\/.*$/, "").trim();
+      if (!l || l.startsWith("passoAtual")) return "";
+      if (l.startsWith("funcoes_.")) {
+        return l.endsWith(";") ? l : `${l};`;
+      }
+      if (/^(run|turn|turnTo|strafe|diagonal|moverGirando|moverOmbroEsq|moverOmbroDir|moverCotoveloEsq|moverCotoveloDir|enviarCodigoCenario)\s*\(/.test(l)) {
+        const comPrefixo = `funcoes_.${l}`;
+        return comPrefixo.endsWith(";") ? comPrefixo : `${comPrefixo};`;
+      }
+      return "";
+    }
+
     function parsearCodigoCpp(texto, tempoMinimoSugerido = 0) {
-      const regexBloco = /if\s*\(\s*passoAtual_\s*==\s*\d+\s*&&\s*decorridoMs\s*>=\s*(\d+)\s*\)\s*\{([\s\S]*?)\}/g;
+      // Aceita passoAtual_ ou passoAtual (sem underline) e mantém todas as linhas do mesmo bloco no mesmo tempo.
+      const regexBloco = /if\s*\([^)]*decorridoMs\s*>=\s*(\d+)[^)]*\)\s*\{([\s\S]*?)\}/g;
       const encontrados = [];
       let match;
 
@@ -885,23 +1235,18 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         const tempo = parseInt(match[1], 10) || 0;
         const corpo = match[2];
         const linhas = corpo.split("\n");
-        for (let l of linhas) {
-          l = l.replace(/\/\/.*$/, "").trim();
-          if (!l || l.startsWith("passoAtual_")) continue;
-          if (l.startsWith("funcoes_.")) {
-            encontrados.push({ tempo, acao: l });
-          }
+        for (const raw of linhas) {
+          const acao = normalizarChamadaCpp(raw);
+          if (acao) encontrados.push({ tempo, acao });
         }
       }
 
       if (encontrados.length === 0) {
         const linhasSoltas = texto.split("\n");
-        let tCursor = tempoMinimoSugerido;
-        for (let l of linhasSoltas) {
-          l = l.replace(/\/\/.*$/, "").trim();
-          if (l.startsWith("funcoes_.")) {
-            encontrados.push({ tempo: tCursor, acao: l });
-            tCursor += 1000;
+        for (const raw of linhasSoltas) {
+          const acao = normalizarChamadaCpp(raw);
+          if (acao) {
+            encontrados.push({ tempo: tempoMinimoSugerido, acao });
           }
         }
       }
@@ -910,9 +1255,9 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       return encontrados;
     }
 
-    function recalcularLinhaDoTempo() {
+    function calcularDuracaoLista(lista) {
       let maxTempo = 0;
-      partesGravadas.forEach((p) => {
+      lista.forEach((p) => {
         if (p.passos && p.passos.length > 0) {
           const ultimo = p.passos[p.passos.length - 1].tempo;
           p.inicioMs = p.passos[0].tempo;
@@ -923,45 +1268,89 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         }
         if (p.fimMs > maxTempo) maxTempo = p.fimMs;
       });
-      duracaoTotalGravada = maxTempo;
+      return maxTempo;
+    }
+
+    function recalcularLinhasDoTempo() {
+      duracaoBaseMs = calcularDuracaoLista(partesBase);
+      duracaoBracosMs = calcularDuracaoLista(partesBracos);
     }
 
     function atualizarBotoesGravacao() {
-      const btnRec = document.getElementById("btnRec");
-      const btnContinuar = document.getElementById("btnContinuar");
-      const btnOverdub = document.getElementById("btnOverdub");
-      const totalPassos = partesGravadas.reduce((acc, p) => acc + (p.passos ? p.passos.length : 0), 0);
-      const temConteudo = partesGravadas.length > 0 && (totalPassos > 0 || duracaoTotalGravada > 0);
+      const btnBaseNovo = document.getElementById("btnRecBaseNovo");
+      const btnBaseCont = document.getElementById("btnRecBaseCont");
+      const btnBracosNovo = document.getElementById("btnRecBracosNovo");
+      const btnBracosCont = document.getElementById("btnRecBracosCont");
+
+      const passosBaseCount = partesBase.reduce((acc, p) => acc + (p.passos ? p.passos.length : 0), 0);
+      const passosBracosCount = partesBracos.reduce((acc, p) => acc + (p.passos ? p.passos.length : 0), 0);
+      const temBase = partesBase.length > 0 && (passosBaseCount > 0 || duracaoBaseMs > 0);
+      const temBracos = partesBracos.length > 0 && (passosBracosCount > 0 || duracaoBracosMs > 0);
+
+      btnBaseNovo.innerText = "🔴 GRAVAR BASE (0s)";
+      btnBaseCont.innerText = "⏭ CONTINUAR BASE";
+      btnBracosNovo.innerText = "🦾 GRAVAR BRAÇOS (0s)";
+      btnBracosCont.innerText = "⏭ CONTINUAR BRAÇOS";
+      [btnBaseNovo, btnBaseCont, btnBracosNovo, btnBracosCont].forEach((b) => b.classList.remove("ativo"));
 
       if (gravando) {
-        btnRec.innerText = "⏹ PARAR GRAVAÇÃO";
-        btnRec.classList.add("ativo");
-        btnContinuar.disabled = true;
-        btnOverdub.disabled = true;
+        btnBaseNovo.disabled = modoGravacaoAtual !== "base_novo";
+        btnBaseCont.disabled = modoGravacaoAtual !== "base_continuar";
+        btnBracosNovo.disabled = modoGravacaoAtual !== "bracos_novo";
+        btnBracosCont.disabled = modoGravacaoAtual !== "bracos_continuar";
+
+        const mapaAtivo = {
+          base_novo: btnBaseNovo,
+          base_continuar: btnBaseCont,
+          bracos_novo: btnBracosNovo,
+          bracos_continuar: btnBracosCont
+        };
+        const ativoBtn = mapaAtivo[modoGravacaoAtual];
+        if (ativoBtn) {
+          ativoBtn.innerText = "⏹ PARAR GRAVAÇÃO";
+          ativoBtn.classList.add("ativo");
+        }
       } else {
-        btnRec.innerText = "🔴 GRAVAR DO ZERO";
-        btnRec.classList.remove("ativo");
-        btnContinuar.disabled = !temConteudo;
-        btnOverdub.disabled = !temConteudo;
+        btnBaseNovo.disabled = false;
+        btnBaseCont.disabled = !temBase;
+        btnBracosNovo.disabled = false;
+        btnBracosCont.disabled = !temBracos;
       }
 
-      const info = document.getElementById("recInfo");
-      if (info) {
-        info.innerText = `⏱ Duração total: ${(duracaoTotalGravada / 1000).toFixed(1)}s | Partes: ${partesGravadas.length} | Passos: ${totalPassos} | 💾 Auto-save ativo`;
+      const infoBase = document.getElementById("recInfoBase");
+      if (infoBase) {
+        infoBase.innerText = `⏱ Duração Base: ${(duracaoBaseMs / 1000).toFixed(1)}s | Partes: ${partesBase.length} | Passos: ${passosBaseCount}`;
+      }
+      const infoBracos = document.getElementById("recInfoBracos");
+      if (infoBracos) {
+        infoBracos.innerText = `⏱ Duração Braços: ${(duracaoBracosMs / 1000).toFixed(1)}s | Partes: ${partesBracos.length} | Passos: ${passosBracosCount}`;
       }
     }
 
-    function renderizarTabelaPartes() {
-      const tbody = document.getElementById("corpoTabelaPartes");
+    function renderizarTabelaCategoria(categoria) {
+      const ehBracos = categoria === "bracos";
+      const tbody = document.getElementById(ehBracos ? "corpoTabelaPartesBracos" : "corpoTabelaPartesBase");
+      const lista = obterListaPartes(categoria);
       if (!tbody) return;
 
-      if (partesGravadas.length === 0) {
-        tbody.innerHTML = `<tr><td class="vazio-partes">Nenhuma parte gravada. Clique em "GRAVAR DO ZERO" ou "COLAR / NOVA PARTE".</td></tr>`;
+      if (lista.length === 0) {
+        const msgVazia = ehBracos
+          ? `Nenhuma parte dos Braços gravada. Clique em "GRAVAR BRAÇOS (0s)" ou "NOVA PARTE BRAÇOS".`
+          : `Nenhuma parte da Base gravada. Clique em "GRAVAR BASE (0s)" ou "NOVA PARTE BASE".`;
+        tbody.innerHTML = `<tr><td class="vazio-partes">${msgVazia}</td></tr>`;
         return;
       }
 
+      const badgeHtml = ehBracos
+        ? `<span class="parte-badge badge-bracos">BRAÇOS</span>`
+        : `<span class="parte-badge badge-base">BASE</span>`;
+      const classeCode = ehBracos ? "parte-code bracos" : "parte-code";
+      const placeholder = ehBracos
+        ? "Cole ou edite comandos dos Braços (moverOmbroEsq, moverCotoveloDir...) aqui..."
+        : "Cole ou edite comandos da Base (run, turn, turnTo...) aqui...";
+
       let offsetPasso = 0;
-      tbody.innerHTML = partesGravadas.map((parte, idx) => {
+      tbody.innerHTML = lista.map((parte, idx) => {
         const qtdPassos = parte.passos ? parte.passos.length : 0;
         const iniSeg = ((parte.inicioMs || 0) / 1000).toFixed(1);
         const fimSeg = ((parte.fimMs || 0) / 1000).toFixed(1);
@@ -976,27 +1365,29 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
               <div class="parte-topo">
                 <div>
                   <span class="parte-titulo">Parte ${idx + 1}</span>
+                  ${badgeHtml}
                   <span class="parte-meta">${iniSeg}s → ${fimSeg}s | ${qtdPassos} passo(s)</span>
                 </div>
                 <div class="parte-acoes">
-                  <button class="btn-play btn-sm" onclick="testarAPartirDaParte(${idx})">▶ PLAY DAQUI</button>
-                  <button class="btn-rec btn-sm" onclick="excluirParte(${idx})">🗑 EXCLUIR</button>
+                  <button class="btn-play btn-sm" onclick="testarAPartirDaParte('${categoria}', ${idx})">▶ PLAY DAQUI</button>
+                  <button class="btn-rec btn-sm" onclick="excluirParte('${categoria}', ${idx})">🗑 EXCLUIR</button>
                 </div>
               </div>
-              <textarea class="parte-code" placeholder="Cole ou edite o código da Parte ${idx + 1} aqui..." oninput="aoEditarCodigoParte(${idx}, this.value)">${textoExibir}</textarea>
+              <textarea class="${classeCode}" placeholder="${placeholder}" oninput="aoEditarCodigoParte('${categoria}', ${idx}, this.value)">${textoExibir}</textarea>
             </td>
           </tr>
         `;
       }).join("");
     }
 
-    function aoEditarCodigoParte(idx, novoTexto) {
-      const parte = partesGravadas[idx];
+    function aoEditarCodigoParte(categoria, idx, novoTexto) {
+      const lista = obterListaPartes(categoria);
+      const parte = lista[idx];
       if (!parte) return;
 
       parte.textoManual = novoTexto;
       parte.editadoManualmente = true;
-      const tempoAnterior = idx > 0 ? (partesGravadas[idx - 1].fimMs || 0) : 0;
+      const tempoAnterior = idx > 0 ? (lista[idx - 1].fimMs || 0) : 0;
       const passosParseados = parsearCodigoCpp(novoTexto, tempoAnterior);
       parte.passos = passosParseados;
       parte.eventos = [];
@@ -1009,12 +1400,13 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         parte.fimMs = tempoAnterior;
       }
 
-      recalcularLinhaDoTempo();
-      atualizarTextoRoteiroCompleto();
+      recalcularLinhasDoTempo();
+      atualizarTextosRoteirosCompletos();
       atualizarBotoesGravacao();
       salvarPartesNoNavegador();
 
-      const metas = document.querySelectorAll("#corpoTabelaPartes .parte-meta");
+      const tbodyId = categoria === "bracos" ? "corpoTabelaPartesBracos" : "corpoTabelaPartesBase";
+      const metas = document.querySelectorAll(`#${tbodyId} .parte-meta`);
       if (metas[idx]) {
         const iniSeg = ((parte.inicioMs || 0) / 1000).toFixed(1);
         const fimSeg = ((parte.fimMs || 0) / 1000).toFixed(1);
@@ -1022,10 +1414,11 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       }
     }
 
-    function adicionarParteManual() {
+    function adicionarParteManual(categoria) {
       if (gravando) return;
-      const inicioBase = duracaoTotalGravada;
-      partesGravadas.push({
+      const lista = obterListaPartes(categoria);
+      const inicioBase = categoria === "bracos" ? duracaoBracosMs : duracaoBaseMs;
+      lista.push({
         inicioMs: inicioBase,
         fimMs: inicioBase,
         passos: [],
@@ -1033,21 +1426,42 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         editadoManualmente: true,
         textoManual: ""
       });
-      renderizarTabelaPartes();
+      renderizarTabelaCategoria(categoria);
       atualizarBotoesGravacao();
       salvarPartesNoNavegador();
 
-      const caixas = document.querySelectorAll("#corpoTabelaPartes .parte-code");
+      const tbodyId = categoria === "bracos" ? "corpoTabelaPartesBracos" : "corpoTabelaPartesBase";
+      const caixas = document.querySelectorAll(`#${tbodyId} .parte-code`);
       if (caixas.length > 0) caixas[caixas.length - 1].focus();
     }
 
-    function excluirParte(idx) {
-      if (gravando || idx < 0 || idx >= partesGravadas.length) return;
+    function excluirParte(categoria, idx) {
+      const lista = obterListaPartes(categoria);
+      if (gravando || idx < 0 || idx >= lista.length) return;
       cancelarReplay();
-      partesGravadas.splice(idx, 1);
-      recalcularLinhaDoTempo();
-      renderizarTabelaPartes();
-      atualizarTextoRoteiroCompleto();
+      lista.splice(idx, 1);
+      recalcularLinhasDoTempo();
+      renderizarTabelaCategoria(categoria);
+      atualizarTextosRoteirosCompletos();
+      atualizarBotoesGravacao();
+      salvarPartesNoNavegador();
+    }
+
+    function limparCategoria(categoria) {
+      if (gravando) return;
+      cancelarReplay();
+      if (categoria === "bracos") {
+        partesBracos = [];
+        indiceParteBracosAtiva = -1;
+        duracaoBracosMs = 0;
+        document.getElementById("codeOutBracos").value = "";
+      } else {
+        partesBase = [];
+        indiceParteBaseAtiva = -1;
+        duracaoBaseMs = 0;
+        document.getElementById("codeOutBase").value = "";
+      }
+      renderizarTabelaCategoria(categoria);
       atualizarBotoesGravacao();
       salvarPartesNoNavegador();
     }
@@ -1055,52 +1469,72 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     function toggleRec(modo) {
       cancelarReplay();
       if (!gravando) {
+        if ((modo === "bracos_novo" || modo === "bracos_continuar") && modoControleGamepad !== "bracos") {
+          alternarModoControleGamepad();
+        } else if ((modo === "base_novo" || modo === "base_continuar") && modoControleGamepad !== "base") {
+          alternarModoControleGamepad();
+        }
+
         gravando = true;
+        modoGravacaoAtual = modo;
         cmdAtivo = "";
         estadoGravOmbro.e.ativo = false;
         estadoGravOmbro.d.ativo = false;
         movX = movY = movRot = movPicoMag = 0;
+        indiceParteBaseAtiva = -1;
+        indiceParteBracosAtiva = -1;
 
-        if (modo === "novo") {
-          duracaoTotalGravada = 0;
-          partesGravadas = [{
+        if (modo === "base_novo") {
+          duracaoBaseMs = 0;
+          partesBase = [{
             inicioMs: 0,
             fimMs: 0,
             passos: [],
             eventos: [],
             editadoManualmente: false
           }];
-          indiceParteAtiva = 0;
+          indiceParteBaseAtiva = 0;
           inicioRec = Date.now();
-          renderizarTabelaPartes();
-          atualizarTextoRoteiroCompleto();
-        } else if (modo === "continuar") {
-          const inicioParte = duracaoTotalGravada;
-          partesGravadas.push({
+          renderizarTabelaCategoria("base");
+          atualizarTextosRoteirosCompletos();
+        } else if (modo === "base_continuar") {
+          const inicioParte = duracaoBaseMs;
+          partesBase.push({
             inicioMs: inicioParte,
             fimMs: inicioParte,
             passos: [],
             eventos: [],
             editadoManualmente: false
           });
-          indiceParteAtiva = partesGravadas.length - 1;
+          indiceParteBaseAtiva = partesBase.length - 1;
           inicioRec = Date.now() - inicioParte;
-          renderizarTabelaPartes();
-        } else if (modo === "overdub") {
-          const partesExistentes = [...partesGravadas];
-          partesGravadas.push({
+          renderizarTabelaCategoria("base");
+        } else if (modo === "bracos_novo") {
+          partesBracos.push({
             inicioMs: 0,
             fimMs: 0,
             passos: [],
             eventos: [],
             editadoManualmente: false
           });
-          indiceParteAtiva = partesGravadas.length - 1;
+          indiceParteBracosAtiva = partesBracos.length - 1;
           inicioRec = Date.now();
-          renderizarTabelaPartes();
-          if (document.getElementById("chkReplayOverdub").checked) {
-            executarListaPartes(partesExistentes, 0);
+          renderizarTabelaCategoria("bracos");
+          if (document.getElementById("chkReplayBaseAoGravarBracos").checked && partesBase.length > 0) {
+            agendarExecucaoLista(partesBase, 0);
           }
+        } else if (modo === "bracos_continuar") {
+          const inicioParte = duracaoBracosMs;
+          partesBracos.push({
+            inicioMs: inicioParte,
+            fimMs: inicioParte,
+            passos: [],
+            eventos: [],
+            editadoManualmente: false
+          });
+          indiceParteBracosAtiva = partesBracos.length - 1;
+          inicioRec = Date.now() - inicioParte;
+          renderizarTabelaCategoria("bracos");
         }
         atualizarBotoesGravacao();
       } else {
@@ -1109,32 +1543,30 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         fecharSegmentoOmbro("e", tempoFim);
         fecharSegmentoOmbro("d", tempoFim);
 
-        if (indiceParteAtiva >= 0 && partesGravadas[indiceParteAtiva]) {
-          const p = partesGravadas[indiceParteAtiva];
+        if (indiceParteBaseAtiva >= 0 && partesBase[indiceParteBaseAtiva]) {
+          const p = partesBase[indiceParteBaseAtiva];
+          p.fimMs = Math.max(p.fimMs || 0, tempoFim);
+          p.eventos.sort((a, b) => a.tempo - b.tempo);
+          p.passos.sort((a, b) => a.tempo - b.tempo);
+        }
+        if (indiceParteBracosAtiva >= 0 && partesBracos[indiceParteBracosAtiva]) {
+          const p = partesBracos[indiceParteBracosAtiva];
           p.fimMs = Math.max(p.fimMs || 0, tempoFim);
           p.eventos.sort((a, b) => a.tempo - b.tempo);
           p.passos.sort((a, b) => a.tempo - b.tempo);
         }
 
-        recalcularLinhaDoTempo();
-        renderizarTabelaPartes();
-        atualizarTextoRoteiroCompleto();
+        recalcularLinhasDoTempo();
+        renderizarTabelaCategoria("base");
+        renderizarTabelaCategoria("bracos");
+        atualizarTextosRoteirosCompletos();
         gravando = false;
-        indiceParteAtiva = -1;
+        modoGravacaoAtual = "";
+        indiceParteBaseAtiva = -1;
+        indiceParteBracosAtiva = -1;
         atualizarBotoesGravacao();
         salvarPartesNoNavegador();
       }
-    }
-
-    function limparRoteiro() {
-      cancelarReplay();
-      partesGravadas = [];
-      indiceParteAtiva = -1;
-      duracaoTotalGravada = 0;
-      document.getElementById("codeOut").value = "";
-      renderizarTabelaPartes();
-      atualizarBotoesGravacao();
-      salvarPartesNoNavegador();
     }
 
     function executarAcaoCppNoRobo(acao) {
@@ -1172,14 +1604,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       }
     }
 
-    function executarListaPartes(listaPartes, indiceInicial) {
-      if (!ws || ws.readyState !== WebSocket.OPEN) {
-        conectarWebSocket();
-        alert("WebSocket desconectado do robô! Verifique o Wi-Fi do Chapeleiro e tente clicar em PLAY novamente.");
-        return;
-      }
-
-      cancelarReplay();
+    function agendarExecucaoLista(listaPartes, indiceInicial) {
       if (!listaPartes || indiceInicial < 0 || indiceInicial >= listaPartes.length) return;
 
       const fatia = listaPartes.slice(indiceInicial);
@@ -1209,8 +1634,25 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       });
     }
 
-    function testarAPartirDaParte(indiceParte) {
-      executarListaPartes(partesGravadas, indiceParte);
+    function testarAPartirDaParte(categoria, indiceParte) {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        conectarWebSocket();
+        alert("WebSocket desconectado do robô! Verifique o Wi-Fi do Chapeleiro e tente clicar em PLAY novamente.");
+        return;
+      }
+      cancelarReplay();
+      agendarExecucaoLista(obterListaPartes(categoria), indiceParte);
+    }
+
+    function testarTudoSincronizado() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) {
+        conectarWebSocket();
+        alert("WebSocket desconectado do robô! Verifique o Wi-Fi do Chapeleiro e tente clicar em TESTAR TUDO novamente.");
+        return;
+      }
+      cancelarReplay();
+      if (partesBase.length > 0) agendarExecucaoLista(partesBase, 0);
+      if (partesBracos.length > 0) agendarExecucaoLista(partesBracos, 0);
     }
 
     function substituirGiroNoReplay(parte, segId, tempoInicio, anguloFinal, vel) {
@@ -1223,8 +1665,8 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
 
     function fecharSegmentoGravado(tempo) {
-      if (!cmdAtivo || indiceParteAtiva < 0) return;
-      const parte = partesGravadas[indiceParteAtiva];
+      const parte = obterParteBaseParaGravacao();
+      if (!cmdAtivo || !parte) return;
       const vel = parseInt(document.getElementById("forcaBase").value) || 120;
       const ticksDesloc = Math.max(
         Math.abs(ticks[0] - m1Start),
@@ -1270,42 +1712,81 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       }
 
       if (acao && (parseFloat(dist) > 1.0 || cmdAtivo === "e" || cmdAtivo === "q" || cmdAtivo === "mov")) {
-        registrarPassoNaParte(parte, segInicioTempo, acao, tempo);
+        registrarPassoNaParte("base", parte, segInicioTempo, acao, tempo);
       }
       cmdAtivo = "";
     }
 
     function sendCmd(cmd) {
       wsSend(cmd);
-      if (!gravando || indiceParteAtiva < 0) return;
+      if (!gravando) return;
 
-      const parte = partesGravadas[indiceParteAtiva];
       const tempo = Date.now() - inicioRec;
       const velBase = parseInt(document.getElementById("forcaBase").value) || 120;
+
+      if (cmd.startsWith("OMB_POS_E:") || cmd.startsWith("OMB_POS_D:") || cmd.startsWith("srv_pos_e:") || cmd.startsWith("srv_pos_d:")) {
+        const parteBr = obterParteBracosParaGravacao();
+        if (cmd.startsWith("OMB_POS_E:")) {
+          const partes = cmd.substring(10).split(",");
+          const graus = parseFloat(partes[0]).toFixed(1);
+          const v = partes[1] || (parseInt(document.getElementById("forcaBraco").value) || 130);
+          registrarPassoNaParte("bracos", parteBr, tempo, `funcoes_.moverOmbroEsq(${graus}f, ${v});`, tempo);
+          parteBr.eventos.push({ tempo, tipo: "raw", cmd });
+        } else if (cmd.startsWith("OMB_POS_D:")) {
+          const partes = cmd.substring(10).split(",");
+          const graus = parseFloat(partes[0]).toFixed(1);
+          const v = partes[1] || (parseInt(document.getElementById("forcaBraco").value) || 130);
+          registrarPassoNaParte("bracos", parteBr, tempo, `funcoes_.moverOmbroDir(${graus}f, ${v});`, tempo);
+          parteBr.eventos.push({ tempo, tipo: "raw", cmd });
+        } else if (cmd.startsWith("srv_pos_e:")) {
+          registrarPassoNaParte("bracos", parteBr, tempo, `funcoes_.moverCotoveloEsq(${parseFloat(cmd.split(":")[1]).toFixed(1)}f);`, tempo);
+          parteBr.eventos.push({ tempo, tipo: "raw", cmd });
+        } else if (cmd.startsWith("srv_pos_d:")) {
+          registrarPassoNaParte("bracos", parteBr, tempo, `funcoes_.moverCotoveloDir(${parseFloat(cmd.split(":")[1]).toFixed(1)}f);`, tempo);
+          parteBr.eventos.push({ tempo, tipo: "raw", cmd });
+        }
+        return;
+      }
+
+      const parte = obterParteBaseParaGravacao();
+      if (!parte) return;
 
       if (cmd.startsWith("ble_tx:")) {
         const partes = cmd.substring(7).split(",");
         const cod = parseInt(partes[0]) || 2565;
         const ch = (partes[1] !== undefined) ? parseInt(partes[1]) : 10;
-        registrarPassoNaParte(parte, tempo, `funcoes_.enviarCodigoCenario(${cod}, ${ch});`, tempo);
+        registrarPassoNaParte("base", parte, tempo, `funcoes_.enviarCodigoCenario(${cod}, ${ch});`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
+      } else if (cmd.startsWith("run:")) {
+        const partes = cmd.substring(4).split(",");
+        const dist = parseFloat(partes[0]).toFixed(1);
+        const v = partes[1] || velBase;
+        registrarPassoNaParte("base", parte, tempo, `funcoes_.run(${dist}f, ${v});`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
+      } else if (cmd.startsWith("strafe:")) {
+        const partes = cmd.substring(7).split(",");
+        const dist = parseFloat(partes[0]).toFixed(1);
+        const v = partes[1] || velBase;
+        registrarPassoNaParte("base", parte, tempo, `funcoes_.strafe(${dist}f, ${v});`, tempo);
+        parte.eventos.push({ tempo, tipo: "raw", cmd });
+      } else if (cmd.startsWith("diag:")) {
+        const partes = cmd.substring(5).split(",");
+        const dist = parseFloat(partes[0]).toFixed(1);
+        const isDir = (parseInt(partes[1]) === 1) ? "true" : "false";
+        const v = partes[2] || velBase;
+        registrarPassoNaParte("base", parte, tempo, `funcoes_.diagonal(${dist}f, ${isDir}, ${v});`, tempo);
         parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("turn:")) {
         const partes = cmd.substring(5).split(",");
         const ang = parseFloat(partes[0]).toFixed(1);
         const v = partes[1] || velBase;
-        registrarPassoNaParte(parte, tempo, `funcoes_.turn(${ang}f, ${v});`, tempo);
+        registrarPassoNaParte("base", parte, tempo, `funcoes_.turn(${ang}f, ${v});`, tempo);
         parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("turn_to:")) {
         const partes = cmd.substring(8).split(",");
         const ang = parseFloat(partes[0]).toFixed(1);
         const v = partes[1] || velBase;
-        registrarPassoNaParte(parte, tempo, `funcoes_.turnTo(${ang}f, ${v});`, tempo);
-        parte.eventos.push({ tempo, tipo: "raw", cmd });
-      } else if (cmd.startsWith("srv_pos_e:")) {
-        registrarPassoNaParte(parte, tempo, `funcoes_.moverCotoveloEsq(${cmd.split(":")[1]}.0f);`, tempo);
-        parte.eventos.push({ tempo, tipo: "raw", cmd });
-      } else if (cmd.startsWith("srv_pos_d:")) {
-        registrarPassoNaParte(parte, tempo, `funcoes_.moverCotoveloDir(${cmd.split(":")[1]}.0f);`, tempo);
+        registrarPassoNaParte("base", parte, tempo, `funcoes_.turnTo(${ang}f, ${v});`, tempo);
         parte.eventos.push({ tempo, tipo: "raw", cmd });
       } else if (cmd.startsWith("vel:") || cmd.startsWith("fod:")) {
         parte.eventos.push({ tempo, tipo: "raw", cmd });
@@ -1374,38 +1855,76 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       }
     }
 
-    function registrarPassoNaParte(parte, tempoInicio, acao, tempoFimOpcional = tempoInicio) {
+    function registrarPassoNaParte(categoria, parte, tempoInicio, acao, tempoFimOpcional = tempoInicio) {
       parte.passos.push({ tempo: tempoInicio, acao });
       parte.passos.sort((a, b) => a.tempo - b.tempo);
       parte.fimMs = Math.max(parte.fimMs || 0, tempoFimOpcional);
-      recalcularLinhaDoTempo();
-      renderizarTabelaPartes();
-      atualizarTextoRoteiroCompleto();
+      recalcularLinhasDoTempo();
+      renderizarTabelaCategoria(categoria);
+      atualizarTextosRoteirosCompletos();
       atualizarBotoesGravacao();
       salvarPartesNoNavegador();
     }
 
-    function atualizarTextoRoteiroCompleto() {
-      const box = document.getElementById("codeOut");
-      const todosPassos = [];
-      partesGravadas.forEach((parte, idxParte) => {
-        if (parte.passos) {
-          parte.passos.forEach((p) => todosPassos.push({ tempo: p.tempo, acao: p.acao, parteNum: idxParte + 1 }));
+    function compilarBlocosCpp(listaPartes, cabecalhoComentario) {
+      const itens = [];
+      listaPartes.forEach((parte, idxParte) => {
+        if (!parte.passos) return;
+        parte.passos.forEach((p) => itens.push({ tempo: p.tempo, acao: p.acao, parteNum: idxParte + 1 }));
+      });
+      itens.sort((a, b) => a.tempo - b.tempo);
+
+      let texto = cabecalhoComentario + "\n";
+
+      // Agrupa comandos no mesmo instante (ms) em um único bloco if para execução simultânea.
+      const grupos = [];
+      itens.forEach((item) => {
+        const ultimo = grupos[grupos.length - 1];
+        if (ultimo && ultimo.tempo === item.tempo) {
+          ultimo.acoes.push(item.acao);
+          if (!ultimo.partes.includes(item.parteNum)) ultimo.partes.push(item.parteNum);
+        } else {
+          grupos.push({ tempo: item.tempo, acoes: [item.acao], partes: [item.parteNum] });
         }
       });
-      todosPassos.sort((a, b) => a.tempo - b.tempo);
 
-      let texto = "// Cole este bloco dentro de BaseCenas::atualizarCenas() para reproduzir a rotina.\n";
-      todosPassos.forEach((item, indice) => {
-        texto += `// [Parte ${item.parteNum}]\nif (passoAtual_ == ${indice} && decorridoMs >= ${item.tempo}) {\n    ${item.acao}\n    passoAtual_++;\n}\n`;
+      grupos.forEach((g, idx) => {
+        const tagPartes = g.partes.map((n) => `Parte ${n}`).join(" + ");
+        const corpo = g.acoes.map((a) => `    ${a}`).join("\n");
+        texto += `// [${tagPartes}]\nif (passoAtual_ == ${idx} && decorridoMs >= ${g.tempo}) {\n${corpo}\n    passoAtual_++;\n}\n`;
       });
-      box.value = texto;
+      return texto;
     }
 
-    function copiarCodigoCompleto() {
-      const box = document.getElementById("codeOut");
+    function atualizarTextosRoteirosCompletos() {
+      const boxBase = document.getElementById("codeOutBase");
+      const boxBracos = document.getElementById("codeOutBracos");
+
+      if (boxBase) {
+        boxBase.value = compilarBlocosCpp(
+          partesBase,
+          "// Cole dentro de BaseCenas::atualizarCenas() (rodas e BLE)."
+        );
+      }
+      if (boxBracos) {
+        boxBracos.value = compilarBlocosCpp(
+          partesBracos,
+          "// Cole dentro de BracosCenas::atualizarCenas() (ombros e cotovelos)."
+        );
+      }
+    }
+
+    function copiarCodigoCaixa(boxId, btnId) {
+      const box = document.getElementById(boxId);
+      if (!box) return;
       box.select();
       navigator.clipboard?.writeText(box.value);
+      const btn = document.getElementById(btnId);
+      if (btn) {
+        const original = btn.innerText;
+        btn.innerText = "✓ COPIADO!";
+        setTimeout(() => { btn.innerText = original; }, 1200);
+      }
     }
 
     function pressionarBotaoDir(id) {

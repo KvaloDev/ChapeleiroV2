@@ -12,19 +12,19 @@ constexpr uint32_t kBaudSerial2 = 115200;
 constexpr float kTicksPorMmBase = 1.65f;
 constexpr int kPwmMax = 255;
 // Piso de PWM para vencer a zona morta e o atrito estático dos motores Yellow Jacket.
-constexpr int kPwmMinBase = 15;
+constexpr int kPwmMinBase = 28;
 
 // Canais BLE Pybricks: canal 8 recebe o giroscópio do SPIKE do Chapeleiro; canal 10 envia o código 2565 ao cenário.
 constexpr uint8_t kCanalSpikeGyro = 8;
-constexpr uint8_t kCanalSpikeCenario = 10;
+constexpr uint8_t kCanalSpikeCenario = 120;
 
 // Colocar -1 caso girar o robô no sentido horário diminua o ângulo lido pelo hub.
 constexpr int kDirGyroSpike = 1;
 
 // Atualiza a rampa a cada 20 ms (50 Hz) para suavizar a transição, usando passos expressos em PWM por 100 ms.
-constexpr int kPwmInicialRampa = 15;
+constexpr int kPwmInicialRampa = 28;
 constexpr int kPassoAcelPwm = 8;
-constexpr int kPassoFreioPwm = 15;
+constexpr int kPassoFreioPwm = 8;
 constexpr int kPassoRampaPwm = kPassoAcelPwm;
 constexpr unsigned long kIntervaloRampaMs = 20;
 
@@ -49,7 +49,7 @@ constexpr char kWifiSsid[] = "ChapeleiroV2";
 constexpr char kWifiPass[] = "tucunarobotica";
 
 // Constantes abaixo pertencem à ESP32 dos braços porque ambas as placas compartilham este cabeçalho.
-constexpr float kTicksPorGrauOmbro = 26.49f;
+constexpr float kTicksPorGrauOmbro = 3.78f;
 constexpr int kPwmMinOmbro = 50;
 
 // Limites físicos de operação para evitar colisão estrutural dos membros superiores com o chassi.
