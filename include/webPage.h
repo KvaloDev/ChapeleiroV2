@@ -213,24 +213,26 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
   </div>
 
   <div class="box">
-    <h3>Força dos Braços (Ombros PWM)</h3>
-    <input type="number" id="forcaBraco" value="130" min="50" max="255" onchange="aplicarForcaBraco(this.value)">
+    <h3>Força dos Braços (Ombros PWM 20–255 | D-Pad ▲▼ ±5)</h3>
+    <button onclick="alterarForcaBraco(-5)">-5</button>
+    <input type="number" id="forcaBraco" value="130" min="20" max="255" onchange="aplicarForcaBraco(this.value)">
+    <button onclick="alterarForcaBraco(5)">+5</button>
     <button onclick="aplicarForcaBraco(document.getElementById('forcaBraco').value)">APLICAR</button>
   </div>
 
   <div class="grid-2">
     <div class="box" style="margin:0;">
-      <div>OMBRO ESQ (Analógico Esq ↕): <span class="telem" id="encBE">0</span></div><br>
+      <div>OMBRO ESQ (Y ▲ / B ▼ | Analóg. Dir ↕): <span class="telem" id="encBE">0</span></div><br>
       <button onmousedown="iniciarOmbro('e', 'up')" onmouseup="pararOmbro('e')" onmouseleave="pararOmbro('e')" ontouchstart="event.preventDefault();iniciarOmbro('e', 'up')" ontouchend="pararOmbro('e')" ontouchcancel="pararOmbro('e')">▲ SOBE</button>
       <button onmousedown="iniciarOmbro('e', 'dwn')" onmouseup="pararOmbro('e')" onmouseleave="pararOmbro('e')" ontouchstart="event.preventDefault();iniciarOmbro('e', 'dwn')" ontouchend="pararOmbro('e')" ontouchcancel="pararOmbro('e')">▼ DESCE</button>
     </div>
     <div class="box" style="margin:0;">
-      <div>OMBRO DIR (Analógico Dir ↕): <span class="telem" id="encBD">0</span></div><br>
+      <div>OMBRO DIR (X ▲ / A ▼): <span class="telem" id="encBD">0</span></div><br>
       <button onmousedown="iniciarOmbro('d', 'up')" onmouseup="pararOmbro('d')" onmouseleave="pararOmbro('d')" ontouchstart="event.preventDefault();iniciarOmbro('d', 'up')" ontouchend="pararOmbro('d')" ontouchcancel="pararOmbro('d')">▲ SOBE</button>
       <button onmousedown="iniciarOmbro('d', 'dwn')" onmouseup="pararOmbro('d')" onmouseleave="pararOmbro('d')" ontouchstart="event.preventDefault();iniciarOmbro('d', 'dwn')" ontouchend="pararOmbro('d')" ontouchcancel="pararOmbro('d')">▼ DESCE</button>
     </div>
     <div class="box" style="margin:0;">
-      <div>COTOVELO ESQ (LB ▼ / LT ▲)</div><br>
+      <div>COTOVELO ESQ (RB ▼ / RT ▲ | D-Pad Ambos)</div><br>
       <input type="number" id="srvE" value="0" min="0" max="120">
       <button onclick="definirCotovelo('e', document.getElementById('srvE').value)">SET</button>
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:6px;">
@@ -240,7 +242,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       </div>
     </div>
     <div class="box" style="margin:0;">
-      <div>COTOVELO DIR (RB ▼ / RT ▲)</div><br>
+      <div>COTOVELO DIR (LB ▼ / LT ▲ | D-Pad Ambos)</div><br>
       <input type="number" id="srvD" value="0" min="0" max="120">
       <button onclick="definirCotovelo('d', document.getElementById('srvD').value)">SET</button>
       <div style="display:grid; grid-template-columns:repeat(3,1fr); gap:4px; margin-top:6px;">
@@ -340,7 +342,9 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     const kStorageV2Key = "chapeleiro_v2_partes_v2";
     const kTicksPorMm = 1.65;
     const kTicksPorGrauOmbro = 3.78;
-    const kDegrausCotovelo = [0, 60, 120];
+    const kPassoCotoveloGraus = 30;
+    const kPwmMinOmbroUi = 20;
+    const kVelMaxCotoveloGrausSeg = 110.0;
 
     let ticks = [0, 0, 0, 0];
     let ticksOmbroEsq = 0;
@@ -356,6 +360,12 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     const estadoGravOmbro = {
       e: { ativo: false, ticksStart: 0, inicioTempo: 0 },
       d: { ativo: false, ticksStart: 0, inicioTempo: 0 }
+    };
+    const estadoGravCotoveloAnalog = {
+      ativo: false,
+      inicioTempo: 0,
+      esqInicial: 0,
+      dirInicial: 0
     };
 
     let contadorSegmentos = 0;
@@ -386,9 +396,18 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     let gpX = 0, gpY = 0, gpRot = 0;
     let gpBtnAnterior = {};
     let gpUltimoEnvioMs = 0;
+    let gpUltimoTickMs = performance.now();
     let gpUltimoX = 0, gpUltimoY = 0, gpUltimoRot = 0;
     let gpOmbroEsqDir = "";
     let gpOmbroDirDir = "";
+
+    // Estado contínuo dos cotovelos para controle proporcional no analógico direito.
+    let cotoveloEsqPos = 0;
+    let cotoveloDirPos = 0;
+    let ultimoCotoveloEsqEnviado = -1;
+    let ultimoCotoveloDirEnviado = -1;
+    let ultimoEnvioCotoveloAnalogMs = 0;
+    let gpCotoveloAnalogAtivo = false;
 
     // Estado para RB / LB segurado + digitação dos graus no teclado do notebook (no Modo Base).
     let modoGiroDigitado = null;
@@ -464,10 +483,10 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       ombroEsq: {
         nome: "moverOmbroEsq",
         assinatura: "funcoes_.moverOmbroEsq(graus, velocidade)",
-        descricao: "Leva o motor DC do ombro esquerdo até o ângulo alvo (BracosCenas).<br>• <b>graus:</b> 0° (baixado) a 90° (levantado)<br>• <b>velocidade:</b> força PWM (50 a 255)",
+        descricao: "Leva o motor DC do ombro esquerdo até o ângulo alvo (BracosCenas).<br>• <b>graus:</b> 0° (baixado) a 90° (levantado)<br>• <b>velocidade:</b> força PWM (20 a 255)",
         campos: [
           { id: "p1", label: "graus (0 a 90)", valor: 45, step: "5" },
-          { id: "p2", label: "velocidade (50-255)", valor: 130, step: "10" }
+          { id: "p2", label: "velocidade (20-255)", valor: 130, step: "5" }
         ],
         cmd: (v) => `OMB_POS_E:${Number(v[0]).toFixed(1)},${Math.round(v[1])}`,
         cpp: (v) => `funcoes_.moverOmbroEsq(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
@@ -475,10 +494,10 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       ombroDir: {
         nome: "moverOmbroDir",
         assinatura: "funcoes_.moverOmbroDir(graus, velocidade)",
-        descricao: "Leva o motor DC do ombro direito até o ângulo alvo (BracosCenas).<br>• <b>graus:</b> 0° (baixado) a 90° (levantado)<br>• <b>velocidade:</b> força PWM (50 a 255)",
+        descricao: "Leva o motor DC do ombro direito até o ângulo alvo (BracosCenas).<br>• <b>graus:</b> 0° (baixado) a 90° (levantado)<br>• <b>velocidade:</b> força PWM (20 a 255)",
         campos: [
           { id: "p1", label: "graus (0 a 90)", valor: 45, step: "5" },
-          { id: "p2", label: "velocidade (50-255)", valor: 130, step: "10" }
+          { id: "p2", label: "velocidade (20-255)", valor: 130, step: "5" }
         ],
         cmd: (v) => `OMB_POS_D:${Number(v[0]).toFixed(1)},${Math.round(v[1])}`,
         cpp: (v) => `funcoes_.moverOmbroDir(${Number(v[0]).toFixed(1)}f, ${Math.round(v[1])});`
@@ -676,6 +695,10 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       sincronizarMovimentoManual();
       if (gpOmbroEsqDir) { pararOmbro("e"); gpOmbroEsqDir = ""; }
       if (gpOmbroDirDir) { pararOmbro("d"); gpOmbroDirDir = ""; }
+      if (gpCotoveloAnalogAtivo) {
+        gpCotoveloAnalogAtivo = false;
+        fecharSegmentoCotoveloAnalog(Date.now() - inicioRec);
+      }
 
       modoControleGamepad = (modoControleGamepad === "base") ? "bracos" : "base";
       const btn = document.getElementById("btnModoControle");
@@ -688,7 +711,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       } else {
         btn.innerText = "🦾 CONTROLE: BRAÇOS (Tab p/ Base)";
         btn.className = "btn-modo-bracos";
-        leg.innerText = "BRAÇOS | Analógico Esq ↕: Ombro Esq | Dir ↕: Ombro Dir | LB/LT: Cotov. Esq | RB/RT: Cotov. Dir (0-60-120°)";
+        leg.innerText = "BRAÇOS | Analóg. Dir ↕: Braço Esq | Y/B: Esq ▲▼ | X/A: Dir ▲▼ | RB/RT: Cotov. Esq ±30° | LB/LT: Cotov. Dir ±30° | D-Pad: Ambos Cotov. 0°/30°/60°/120°";
       }
       gpUltimoBotaoInfo = `Modo ${modoControleGamepad.toUpperCase()}`;
     }
@@ -708,20 +731,90 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       const g = Math.max(0, Math.min(120, Math.round(parseFloat(graus) || 0)));
       const inputId = (lado === "e") ? "srvE" : "srvD";
       document.getElementById(inputId).value = g;
+      if (lado === "e") {
+        cotoveloEsqPos = g;
+        ultimoCotoveloEsqEnviado = g;
+      } else {
+        cotoveloDirPos = g;
+        ultimoCotoveloDirEnviado = g;
+      }
       sendCmd(`srv_pos_${lado}:${g}`);
+    }
+
+    function fecharSegmentoCotoveloAnalog(tempo) {
+      if (!estadoGravCotoveloAnalog.ativo || !gravando) {
+        estadoGravCotoveloAnalog.ativo = false;
+        return;
+      }
+      const parteBr = obterParteBracosParaGravacao();
+      const esqFinal = Math.round(cotoveloEsqPos);
+      const dirFinal = Math.round(cotoveloDirPos);
+
+      if (esqFinal !== estadoGravCotoveloAnalog.esqInicial) {
+        registrarPassoNaParte("bracos", parteBr, estadoGravCotoveloAnalog.inicioTempo, `funcoes_.moverCotoveloEsq(${esqFinal.toFixed(1)}f);`, tempo);
+      }
+      if (dirFinal !== estadoGravCotoveloAnalog.dirInicial) {
+        registrarPassoNaParte("bracos", parteBr, estadoGravCotoveloAnalog.inicioTempo, `funcoes_.moverCotoveloDir(${dirFinal.toFixed(1)}f);`, tempo);
+      }
+      estadoGravCotoveloAnalog.ativo = false;
+    }
+
+    function atualizarCotovelosProporcional(ryCotovelo, dt, agora) {
+      if (ryCotovelo === 0) {
+        if (gpCotoveloAnalogAtivo) {
+          gpCotoveloAnalogAtivo = false;
+          fecharSegmentoCotoveloAnalog(Date.now() - inicioRec);
+        }
+        return false;
+      }
+
+      if (!gpCotoveloAnalogAtivo) {
+        gpCotoveloAnalogAtivo = true;
+        cotoveloEsqPos = Math.max(0, Math.min(120, parseFloat(document.getElementById("srvE").value) || 0));
+        cotoveloDirPos = Math.max(0, Math.min(120, parseFloat(document.getElementById("srvD").value) || 0));
+        if (gravando) {
+          estadoGravCotoveloAnalog.ativo = true;
+          estadoGravCotoveloAnalog.inicioTempo = Date.now() - inicioRec;
+          estadoGravCotoveloAnalog.esqInicial = Math.round(cotoveloEsqPos);
+          estadoGravCotoveloAnalog.dirInicial = Math.round(cotoveloDirPos);
+        }
+      }
+
+      const delta = ryCotovelo * kVelMaxCotoveloGrausSeg * dt;
+      cotoveloEsqPos = Math.max(0, Math.min(120, cotoveloEsqPos + delta));
+      cotoveloDirPos = Math.max(0, Math.min(120, cotoveloDirPos + delta));
+
+      const intE = Math.round(cotoveloEsqPos);
+      const intD = Math.round(cotoveloDirPos);
+      document.getElementById("srvE").value = intE;
+      document.getElementById("srvD").value = intD;
+
+      if (agora - ultimoEnvioCotoveloAnalogMs >= 45) {
+        const tempoGrav = Date.now() - inicioRec;
+        const parteBr = gravando ? obterParteBracosParaGravacao() : null;
+
+        if (intE !== ultimoCotoveloEsqEnviado) {
+          ultimoCotoveloEsqEnviado = intE;
+          const cmdE = `srv_pos_e:${intE}`;
+          wsSend(cmdE);
+          if (parteBr) parteBr.eventos.push({ tempo: tempoGrav, tipo: "raw", cmd: cmdE });
+        }
+        if (intD !== ultimoCotoveloDirEnviado) {
+          ultimoCotoveloDirEnviado = intD;
+          const cmdD = `srv_pos_d:${intD}`;
+          wsSend(cmdD);
+          if (parteBr) parteBr.eventos.push({ tempo: tempoGrav, tipo: "raw", cmd: cmdD });
+        }
+        ultimoEnvioCotoveloAnalogMs = agora;
+      }
+      return true;
     }
 
     function moverDegrauCotovelo(lado, deltaPasso) {
       const inputId = (lado === "e") ? "srvE" : "srvD";
       const atual = parseInt(document.getElementById(inputId).value) || 0;
-      let idx = 0;
-      let menorDiff = 999;
-      kDegrausCotovelo.forEach((val, i) => {
-        const diff = Math.abs(atual - val);
-        if (diff < menorDiff) { menorDiff = diff; idx = i; }
-      });
-      const novoIdx = Math.max(0, Math.min(kDegrausCotovelo.length - 1, idx + deltaPasso));
-      definirCotovelo(lado, kDegrausCotovelo[novoIdx]);
+      const novoGrau = Math.max(0, Math.min(120, atual + (deltaPasso * kPassoCotoveloGraus)));
+      definirCotovelo(lado, novoGrau);
     }
 
     function atualizarVisorGiroDigitado() {
@@ -807,11 +900,19 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
       gpX = gpY = gpRot = 0;
       if (gpOmbroEsqDir) { pararOmbro("e"); gpOmbroEsqDir = ""; }
       if (gpOmbroDirDir) { pararOmbro("d"); gpOmbroDirDir = ""; }
+      if (gpCotoveloAnalogAtivo) {
+        gpCotoveloAnalogAtivo = false;
+        fecharSegmentoCotoveloAnalog(Date.now() - inicioRec);
+      }
       gpBtnAnterior = {};
       sincronizarMovimentoManual();
     });
 
     function lerGamepadLoop() {
+      const agoraLoop = performance.now();
+      const dtSeg = Math.min(0.1, Math.max(0.001, (agoraLoop - gpUltimoTickMs) / 1000.0));
+      gpUltimoTickMs = agoraLoop;
+
       const lista = navigator.getGamepads ? navigator.getGamepads() : [];
       let gp = null;
       for (let i = 0; i < lista.length; i++) {
@@ -830,10 +931,14 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         const btnLT = isBtnPressed(gp, 6);
         const btnRT = isBtnPressed(gp, 7);
 
+        let dpadCima = isBtnPressed(gp, 12);
+        let dpadBaixo = isBtnPressed(gp, 13);
         let dpadEsq = isBtnPressed(gp, 14);
         let dpadDir = isBtnPressed(gp, 15);
-        if (!dpadEsq && !dpadDir && gp.axes.length > 9) {
+        if (!dpadCima && !dpadBaixo && !dpadEsq && !dpadDir && gp.axes.length > 9) {
           const pov = gp.axes[9];
+          if (pov <= -0.85) dpadCima = true;
+          if (pov >= 0.05 && pov <= 0.25) dpadBaixo = true;
           if (pov >= 0.65 && pov <= 0.80) dpadEsq = true;
           if (pov >= -0.50 && pov <= -0.35) dpadDir = true;
         }
@@ -876,67 +981,100 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
           if (dpadEsq && !gpBtnAnterior.dEsq) { executarGiroSeta(-1); atualizarStatusGamepad(gp, "D-Pad ◄"); }
           if (dpadDir && !gpBtnAnterior.dDir) { executarGiroSeta(1); atualizarStatusGamepad(gp, "D-Pad ►"); }
 
-          const agora = performance.now();
           const mudou = Math.abs(gpX - gpUltimoX) >= 0.03 ||
                         Math.abs(gpY - gpUltimoY) >= 0.03 ||
                         Math.abs(gpRot - gpUltimoRot) >= 0.03 ||
                         ((gpX === 0 && gpY === 0 && gpRot === 0) && (gpUltimoX !== 0 || gpUltimoY !== 0 || gpUltimoRot !== 0));
 
-          if (mudou && (agora - gpUltimoEnvioMs >= 25)) {
+          if (mudou && (agoraLoop - gpUltimoEnvioMs >= 25)) {
             gpUltimoX = gpX;
             gpUltimoY = gpY;
             gpUltimoRot = gpRot;
-            gpUltimoEnvioMs = agora;
+            gpUltimoEnvioMs = agoraLoop;
             sincronizarMovimentoManual();
           }
         } else {
-          const lyBraco = aplicarZonaMorta(-(gp.axes[1] || 0), 0.22);
-          const ryBraco = aplicarZonaMorta(-(gp.axes[3] || 0), 0.22);
+          // 1. Analógico direito (booleano): sobe/desce o braço (ombro) esquerdo.
+          const ryBracoEsq = aplicarZonaMorta(-(gp.axes[3] || 0), 0.25);
+          const dirAnalogEsq = (ryBracoEsq > 0) ? "up" : (ryBracoEsq < 0 ? "dwn" : "");
 
-          const novaDirE = (lyBraco > 0) ? "up" : (lyBraco < 0 ? "dwn" : "");
+          // 2. Botões individuais dos ombros: Y sobe / B desce Esq; X sobe / A desce Dir.
+          const dirBtnEsq = btnY ? "up" : (btnB ? "dwn" : "");
+          const dirBtnDir = btnX ? "up" : (btnA ? "dwn" : "");
+
+          const novaDirE = dirAnalogEsq || dirBtnEsq;
+          const novaDirD = dirBtnDir;
+
           if (novaDirE !== gpOmbroEsqDir) {
             gpOmbroEsqDir = novaDirE;
             if (novaDirE) {
               iniciarOmbro("e", novaDirE);
-              atualizarStatusGamepad(gp, `Ombro Esq ${novaDirE === "up" ? "▲" : "▼"}`);
+              if (dirAnalogEsq) {
+                atualizarStatusGamepad(gp, `Analóg. Dir: Braço Esq ${novaDirE === "up" ? "▲" : "▼"}`);
+              } else {
+                atualizarStatusGamepad(gp, `${novaDirE === "up" ? "Y: Ombro Esq ▲" : "B: Ombro Esq ▼"}`);
+              }
             } else {
               pararOmbro("e");
             }
           }
 
-          const novaDirD = (ryBraco > 0) ? "up" : (ryBraco < 0 ? "dwn" : "");
           if (novaDirD !== gpOmbroDirDir) {
             gpOmbroDirDir = novaDirD;
             if (novaDirD) {
               iniciarOmbro("d", novaDirD);
-              atualizarStatusGamepad(gp, `Ombro Dir ${novaDirD === "up" ? "▲" : "▼"}`);
+              atualizarStatusGamepad(gp, `${novaDirD === "up" ? "X: Ombro Dir ▲" : "A: Ombro Dir ▼"}`);
             } else {
               pararOmbro("d");
             }
           }
 
-          if (btnLB && !gpBtnAnterior.lb) {
-            moverDegrauCotovelo("e", -1);
-            atualizarStatusGamepad(gp, `LB: Cotov. Esq ${document.getElementById("srvE").value}°`);
-          }
-          if (btnLT && !gpBtnAnterior.lt) {
-            moverDegrauCotovelo("e", 1);
-            atualizarStatusGamepad(gp, `LT: Cotov. Esq ${document.getElementById("srvE").value}°`);
-          }
-
+          // 3. Gatilhos e Bumpers invertidos (±30°): R (RB/RT) -> Cotovelo Esquerdo; L (LB/LT) -> Cotovelo Direito.
           if (btnRB && !gpBtnAnterior.rb) {
-            moverDegrauCotovelo("d", -1);
-            atualizarStatusGamepad(gp, `RB: Cotov. Dir ${document.getElementById("srvD").value}°`);
+            moverDegrauCotovelo("e", -1);
+            atualizarStatusGamepad(gp, `RB: Cotov. Esq ${document.getElementById("srvE").value}°`);
           }
           if (btnRT && !gpBtnAnterior.rt) {
+            moverDegrauCotovelo("e", 1);
+            atualizarStatusGamepad(gp, `RT: Cotov. Esq ${document.getElementById("srvE").value}°`);
+          }
+
+          if (btnLB && !gpBtnAnterior.lb) {
+            moverDegrauCotovelo("d", -1);
+            atualizarStatusGamepad(gp, `LB: Cotov. Dir ${document.getElementById("srvD").value}°`);
+          }
+          if (btnLT && !gpBtnAnterior.lt) {
             moverDegrauCotovelo("d", 1);
-            atualizarStatusGamepad(gp, `RT: Cotov. Dir ${document.getElementById("srvD").value}°`);
+            atualizarStatusGamepad(gp, `LT: Cotov. Dir ${document.getElementById("srvD").value}°`);
+          }
+
+          // 4. D-Pad: posições fixas dos dois cotovelos ao mesmo tempo (Up: 120°, Left: 30°, Right: 60°, Down: 0°).
+          if (dpadCima && !gpBtnAnterior.dCima) {
+            definirCotovelo("e", 120);
+            definirCotovelo("d", 120);
+            atualizarStatusGamepad(gp, "D-Pad ▲: Ambos Cotov. 120°");
+          }
+          if (dpadEsq && !gpBtnAnterior.dEsq) {
+            definirCotovelo("e", 30);
+            definirCotovelo("d", 30);
+            atualizarStatusGamepad(gp, "D-Pad ◄: Ambos Cotov. 30°");
+          }
+          if (dpadDir && !gpBtnAnterior.dDir) {
+            definirCotovelo("e", 60);
+            definirCotovelo("d", 60);
+            atualizarStatusGamepad(gp, "D-Pad ►: Ambos Cotov. 60°");
+          }
+          if (dpadBaixo && !gpBtnAnterior.dBaixo) {
+            definirCotovelo("e", 0);
+            definirCotovelo("d", 0);
+            atualizarStatusGamepad(gp, "D-Pad ▼: Ambos Cotov. 0°");
           }
         }
 
         gpBtnAnterior = {
           a: btnA, b: btnB, x: btnX, y: btnY,
           lb: btnLB, rb: btnRB, lt: btnLT, rt: btnRT,
+          dCima: dpadCima, dBaixo: dpadBaixo,
           dEsq: dpadEsq, dDir: dpadDir
         };
       }
@@ -1108,9 +1246,17 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
 
     function aplicarForcaBraco(valor) {
-      const v = Math.max(50, Math.min(255, parseInt(valor) || 130));
+      const parsed = parseInt(valor);
+      const base = isNaN(parsed) ? 130 : parsed;
+      const v = Math.max(kPwmMinOmbroUi, Math.min(255, base));
       document.getElementById("forcaBraco").value = v;
       wsSend(`vel_braco:${v}`);
+    }
+
+    function alterarForcaBraco(delta) {
+      const atual = parseInt(document.getElementById("forcaBraco").value);
+      const base = isNaN(atual) ? 130 : atual;
+      aplicarForcaBraco(base + delta);
     }
 
     function selecionarPreset(indice) {
@@ -1226,7 +1372,6 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
     }
 
     function parsearCodigoCpp(texto, tempoMinimoSugerido = 0) {
-      // Aceita passoAtual_ ou passoAtual (sem underline) e mantém todas as linhas do mesmo bloco no mesmo tempo.
       const regexBloco = /if\s*\([^)]*decorridoMs\s*>=\s*(\d+)[^)]*\)\s*\{([\s\S]*?)\}/g;
       const encontrados = [];
       let match;
@@ -1480,6 +1625,7 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         cmdAtivo = "";
         estadoGravOmbro.e.ativo = false;
         estadoGravOmbro.d.ativo = false;
+        estadoGravCotoveloAnalog.ativo = false;
         movX = movY = movRot = movPicoMag = 0;
         indiceParteBaseAtiva = -1;
         indiceParteBracosAtiva = -1;
@@ -1542,6 +1688,8 @@ const char kIndexHtml[] PROGMEM = R"rawliteral(
         fecharSegmentoGravado(tempoFim);
         fecharSegmentoOmbro("e", tempoFim);
         fecharSegmentoOmbro("d", tempoFim);
+        gpCotoveloAnalogAtivo = false;
+        fecharSegmentoCotoveloAnalog(tempoFim);
 
         if (indiceParteBaseAtiva >= 0 && partesBase[indiceParteBaseAtiva]) {
           const p = partesBase[indiceParteBaseAtiva];

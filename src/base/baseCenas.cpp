@@ -21,47 +21,97 @@ void BaseCenas::atualizarCenas() {
     if (!isCenaAtiva_) return;
     unsigned long decorridoMs = millis() - inicioCenaMs_;
 
-
-//Parte 1
-
+/*
+// [Parte 1]
 if (passoAtual_ == 0 && decorridoMs >= 377) {
     funcoes_.run(1700.0f, 90);
     passoAtual_++;
 }
+// [Parte 1]
 if (passoAtual_ == 1 && decorridoMs >= 4043) {
-    funcoes_.turn(-135.0f, 100);
+    funcoes_.turnTo(-135.0f, 90);
     passoAtual_++;
 }
-
-//Parte 2 
-
-if (passoAtual_ == 2 && decorridoMs >= 11932) {
-    funcoes_.turnTo(-90.0f, 100);
+// [Parte 2]
+if (passoAtual_ == 2 && decorridoMs >= 11850) {
+    funcoes_.turnTo(-90.0f, 90);
     passoAtual_++;
 }
-if (passoAtual_ == 3 && decorridoMs >= 13000) {
-    funcoes_.run(1600.0f, 95);
+// [Parte 2]
+if (passoAtual_ == 3 && decorridoMs >= 13700) {
+    funcoes_.run(1700.0f, 90);
     passoAtual_++;
 }
-if (passoAtual_ == 4 && decorridoMs >= 16315) {
-    funcoes_.turnTo(180.0f, 100);
+// [Parte 2]
+if (passoAtual_ == 4 && decorridoMs >= 17790) {
+    funcoes_.turnTo(-180.0f, 90);
     passoAtual_++;
 }
-if (passoAtual_ == 5 && decorridoMs >= 23764) {
-    funcoes_.turnTo(90.0f, 100);
+// [Parte 3]
+if (passoAtual_ == 5 && decorridoMs >= 24000) {
+    funcoes_.turnTo(90.0f, 90);
     passoAtual_++;
 }
-if (passoAtual_ == 6 && decorridoMs >= 26781) {
-    funcoes_.turn(33.5f, 100);
+// [Parte 3]
+if (passoAtual_ == 6 && decorridoMs >= 26500) {
+    funcoes_.turnTo(-180.0f, 20);
     passoAtual_++;
 }
-if (passoAtual_ == 7 && decorridoMs >= 28249) {
-    funcoes_.strafe(-920.0f, 70);
+// [Parte 3]
+if (passoAtual_ == 7 && decorridoMs >= 30800) {
+    funcoes_.strafe(-1400.0f, 90);
     passoAtual_++;
 }
-if (passoAtual_ == 8 && decorridoMs >= 31479) {
-    funcoes_.turn(5.1f, 90);
+// [Parte 3]
+if (passoAtual_ == 8 && decorridoMs >= 33900) {
+    funcoes_.turnTo(-155.0f, 90);
     passoAtual_++;
 }
+// [Parte 4]
+if (passoAtual_ == 9 && decorridoMs >= 71000) {
+    funcoes_.enviarCodigoCenario(2565, 120);
+    passoAtual_++;
+}
+// [Parte 4]
+if (passoAtual_ == 10 && decorridoMs >= 81000) {
+    funcoes_.turnTo(-145.0f, 80);
+    passoAtual_++;
+}
+// [Parte 4]
+if (passoAtual_ == 11 && decorridoMs >= 83000) {
+    funcoes_.run(800.0f, 80);
+    passoAtual_++;
+}
+// [Parte 5]
+if (passoAtual_ == 12 && decorridoMs >= 116000) {
+    funcoes_.turnTo(-180.0f, 90);
+    passoAtual_++;
+}
+// [Parte 5]
+if (passoAtual_ == 13 && decorridoMs >= 117000) {
+    funcoes_.strafe(800.0f, 90);
+    passoAtual_++;
+}
+// [Parte 5]
+if (passoAtual_ == 14 && decorridoMs >= 121000) {
+    funcoes_.run(1500.0f, 90);
+    passoAtual_++;
+}
+// [Parte 6]
+if (passoAtual_ == 15 && decorridoMs >= 149500) {
+    funcoes_.turnTo(-0.0f, 95);
+    passoAtual_++;
+}
+// [Parte 6]
+if (passoAtual_ == 16 && decorridoMs >= 152200) {
+    funcoes_.strafe(550.0f, 90);
+    passoAtual_++;
+}
+// [Parte 6]
+if (passoAtual_ == 17 && decorridoMs >= 153600) {
+    funcoes_.turnTo(0.0f, 90);
+    passoAtual_++;
+}
+*/
 
 }

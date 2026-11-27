@@ -15,9 +15,10 @@ constexpr uint32_t kFreqPwmOmbroHz = 1000;
 constexpr uint8_t kResPwmOmbroBits = 8;
 
 // Calibração medida fisicamente no robô: ~340 ticks em 90 graus (3.78 ticks/grau).
-constexpr float kTicksPorGrauCalibrado = 3.78f;
+constexpr float kTicksPorGrauCalibrado = 5.2f;
 constexpr long kToleranciaTicksOmbro = 5;
 constexpr float kKpOmbro = 3.5f;
+constexpr int kPwmMinOmbroCalibrado = 20;
 
 bool pwmOmbrosConfigurado = false;
 
@@ -100,7 +101,7 @@ void BracosFuncoes::pararOmbros() {
 void BracosFuncoes::moverOmbroEsq(float graus, int velocidade) {
     float seguro = limitarAngulo_(graus, kOmbroMinGraus, kOmbroMaxGraus, "OmbroEsq");
     alvoTicksEsq_ = lroundf(seguro * kTicksPorGrauCalibrado);
-    velOmbroEsq_ = constrain(velocidade, kPwmMinOmbro, kPwmMax);
+    velOmbroEsq_ = constrain(velocidade, kPwmMinOmbroCalibrado, kPwmMax);
     isManualOmbroAtivo_ = false;
     isOmbroEsqAtivo_ = true;
 }
@@ -108,7 +109,7 @@ void BracosFuncoes::moverOmbroEsq(float graus, int velocidade) {
 void BracosFuncoes::moverOmbroDir(float graus, int velocidade) {
     float seguro = limitarAngulo_(graus, kOmbroMinGraus, kOmbroMaxGraus, "OmbroDir");
     alvoTicksDir_ = lroundf(seguro * kTicksPorGrauCalibrado);
-    velOmbroDir_ = constrain(velocidade, kPwmMinOmbro, kPwmMax);
+    velOmbroDir_ = constrain(velocidade, kPwmMinOmbroCalibrado, kPwmMax);
     isManualOmbroAtivo_ = false;
     isOmbroDirAtivo_ = true;
 }
@@ -145,7 +146,7 @@ void BracosFuncoes::processarSerial2(BracosCenas& cenas) {
                 : kCanalSpikeCenario;
             setupBracos.transmitirCodigoSpike(codigo, canal, 1500);
         } else if (cmd.startsWith("vel_braco:")) {
-            velManualOmbro_ = constrain(cmd.substring(10).toInt(), kPwmMinOmbro, kPwmMax);
+            velManualOmbro_ = constrain(cmd.substring(10).toInt(), kPwmMinOmbroCalibrado, kPwmMax);
         } else if (cmd.startsWith("SRV_POS_E:") || cmd.startsWith("srv_pos_e:")) {
             moverCotoveloEsq(cmd.substring(10).toFloat());
         } else if (cmd.startsWith("SRV_POS_D:") || cmd.startsWith("srv_pos_d:")) {
@@ -208,7 +209,7 @@ void BracosFuncoes::atualizarCinematica() {
             isOmbroEsqAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, 0);
         } else {
-            int pwmMinEfetivo = min(kPwmMinOmbro, velOmbroEsq_);
+            int pwmMinEfetivo = min(kPwmMinOmbroCalibrado, velOmbroEsq_);
             int pwm = constrain(static_cast<int>(abs(erroEsq) * kKpOmbro), pwmMinEfetivo, velOmbroEsq_);
             aplicarPwmOmbro_(kPinOmbroEsqRpwm, kPinOmbroEsqLpwm, (erroEsq > 0) ? pwm : -pwm);
         }
@@ -222,7 +223,7 @@ void BracosFuncoes::atualizarCinematica() {
             isOmbroDirAtivo_ = false;
             aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, 0);
         } else {
-            int pwmMinEfetivo = min(kPwmMinOmbro, velOmbroDir_);
+            int pwmMinEfetivo = min(kPwmMinOmbroCalibrado, velOmbroDir_);
             int pwm = constrain(static_cast<int>(abs(erroDir) * kKpOmbro), pwmMinEfetivo, velOmbroDir_);
             aplicarPwmOmbro_(kPinOmbroDirRpwm, kPinOmbroDirLpwm, (erroDir > 0) ? pwm : -pwm);
         }
